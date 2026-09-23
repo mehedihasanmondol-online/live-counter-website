@@ -45,6 +45,7 @@
   // State
   let players = [];
   let targetScore = 100; // 0 or Infinity = Endless
+  let initialScore = 0; // Starting score value for players
   let undoStack = [];
   let winner = null;
   let isStreamMode = false;
@@ -62,6 +63,8 @@
   const arenaGrid = document.getElementById('arena-grid');
   const targetButtons = document.querySelectorAll('.target-btn');
   const targetCustomInput = document.getElementById('target-custom-input');
+  const initialButtons = document.querySelectorAll('.initial-btn');
+  const initialCustomInput = document.getElementById('initial-custom-input');
   const timerDisplay = document.getElementById('timer-display');
   const timerToggleBtn = document.getElementById('timer-toggle-btn');
   const timerResetBtn = document.getElementById('timer-reset-btn');
@@ -121,6 +124,7 @@
     try {
       localStorage.setItem('live_counter_players', JSON.stringify(players));
       localStorage.setItem('live_counter_target', targetScore.toString());
+      localStorage.setItem('live_counter_initial_score', initialScore.toString());
       localStorage.setItem('live_counter_theme', currentTheme);
     } catch (e) {
       console.warn('Storage save failed:', e);
@@ -129,6 +133,11 @@
 
   function loadState() {
     try {
+      const savedInitial = localStorage.getItem('live_counter_initial_score');
+      if (savedInitial !== null) {
+        initialScore = Math.max(0, parseInt(savedInitial, 10) || 0);
+      }
+
       const savedPlayers = localStorage.getItem('live_counter_players');
       if (savedPlayers) {
         players = JSON.parse(savedPlayers);
@@ -138,6 +147,7 @@
         });
       } else {
         players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
+        players.forEach(p => p.score = initialScore);
       }
 
       const savedTarget = localStorage.getItem('live_counter_target');
@@ -151,6 +161,7 @@
       }
     } catch (e) {
       players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
+      players.forEach(p => p.score = initialScore);
     }
 
     // Sync target button UI
@@ -174,6 +185,53 @@
         targetCustomInput.classList.remove('active');
       }
     }
+
+    // Sync initial score button UI
+    syncInitialScoreUI();
+  }
+
+  function syncInitialScoreUI() {
+    let matchedInitialPreset = false;
+    initialButtons.forEach(btn => {
+      const val = parseInt(btn.dataset.initial, 10);
+      if (val === initialScore && document.activeElement !== initialCustomInput) {
+        btn.classList.add('active');
+        matchedInitialPreset = true;
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    if (initialCustomInput) {
+      if (!matchedInitialPreset) {
+        if (document.activeElement !== initialCustomInput) {
+          initialCustomInput.value = initialScore;
+        }
+        initialCustomInput.classList.add('active');
+      } else {
+        if (document.activeElement !== initialCustomInput) {
+          initialCustomInput.value = '';
+          initialCustomInput.classList.remove('active');
+        }
+      }
+    }
+  }
+
+  function setInitialScore(newVal, updateExistingPlayers = true) {
+    const val = Math.max(0, parseInt(newVal, 10) || 0);
+    initialScore = val;
+
+    syncInitialScoreUI();
+
+    if (updateExistingPlayers) {
+      players.forEach(p => {
+        p.score = initialScore;
+      });
+      undoStack = [];
+    }
+
+    saveState();
+    renderArena();
   }
 
   /* ==========================================================================
@@ -962,7 +1020,7 @@
         name,
         tag,
         avatar,
-        score: 0,
+        score: initialScore,
         color: selectedColor,
         colorRgb: selectedColorRgb,
         posX: 50,
@@ -1062,6 +1120,56 @@
       });
     }
 
+    // Initial score preset buttons
+    initialButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        initialButtons.forEach(b => b.classList.remove('active'));
+        if (initialCustomInput) {
+          initialCustomInput.classList.remove('active');
+          initialCustomInput.value = '';
+        }
+        btn.classList.add('active');
+        const val = parseInt(btn.dataset.initial, 10);
+        setInitialScore(val, true);
+        if (window.soundEngine) window.soundEngine.playReset();
+      });
+    });
+
+    // Manual custom initial score input
+    if (initialCustomInput) {
+      const applyCustomInitial = (isFinal = false) => {
+        const raw = initialCustomInput.value.trim();
+        if (raw === '') {
+          if (isFinal) {
+            syncInitialScoreUI();
+          }
+          return;
+        }
+        const val = parseInt(raw, 10);
+        if (!isNaN(val) && val >= 0) {
+          initialButtons.forEach(b => b.classList.remove('active'));
+          initialCustomInput.classList.add('active');
+          setInitialScore(val, true);
+        }
+      };
+
+      initialCustomInput.addEventListener('focus', () => {
+        initialButtons.forEach(b => b.classList.remove('active'));
+        initialCustomInput.classList.add('active');
+      });
+
+      initialCustomInput.addEventListener('input', () => applyCustomInitial(false));
+      initialCustomInput.addEventListener('change', () => applyCustomInitial(true));
+      initialCustomInput.addEventListener('blur', () => applyCustomInitial(true));
+
+      initialCustomInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          applyCustomInitial(true);
+          initialCustomInput.blur();
+        }
+      });
+    }
+
     // Timer controls
     timerToggleBtn.addEventListener('click', toggleTimer);
     timerResetBtn.addEventListener('click', resetTimer);
@@ -1071,8 +1179,8 @@
 
     // Reset Match Scores
     resetBtn.addEventListener('click', () => {
-      if (confirm('Are you sure you want to reset all scores to 0?')) {
-        players.forEach(p => p.score = 0);
+      if (confirm(`Are you sure you want to reset all scores to ${initialScore}?`)) {
+        players.forEach(p => p.score = initialScore);
         undoStack = [];
         saveState();
         if (window.soundEngine) window.soundEngine.playReset();
@@ -1118,7 +1226,7 @@
 
     // Winner modal buttons
     rematchBtn.addEventListener('click', () => {
-      players.forEach(p => p.score = 0);
+      players.forEach(p => p.score = initialScore);
       undoStack = [];
       saveState();
       winnerModal.classList.remove('show');
@@ -1253,6 +1361,8 @@
     getPlayers: () => players,
     modifyScore: (playerId, delta, x, y) => modifyScore(playerId, delta, x, y),
     getTargetScore: () => targetScore,
+    getInitialScore: () => initialScore,
+    setInitialScore: (val, update) => setInitialScore(val, update),
     subscribe: (fn) => {
       arenaListeners.push(fn);
       try {

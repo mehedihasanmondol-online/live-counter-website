@@ -26,7 +26,7 @@
 
     <!-- Match Target & Stopwatch Controls -->
     <div class="match-controls-center">
-      <!-- Target Score Selector -->
+      <!-- Match Target Score Selector -->
       <div class="control-pill-group" title="Target score to win match">
         <span class="control-label">TARGET:</span>
         <button class="target-btn" data-target="20" id="target-btn-20">20</button>
@@ -35,6 +35,17 @@
         <button class="target-btn" data-target="0" id="target-btn-endless" title="No target limit">∞</button>
         <div class="target-custom-wrap" title="Enter any custom target score manually">
           <input type="number" id="target-custom-input" class="target-custom-input" min="1" max="99999" placeholder="Custom" />
+        </div>
+      </div>
+
+      <!-- Initial Starting Score Selector (Score starts from here) -->
+      <div class="control-pill-group initial-pill-group" title="Initial starting score for all players">
+        <span class="control-label">INITIAL:</span>
+        <button class="initial-btn active" data-initial="0" id="initial-btn-0">0</button>
+        <button class="initial-btn" data-initial="10" id="initial-btn-10">10</button>
+        <button class="initial-btn" data-initial="50" id="initial-btn-50">50</button>
+        <div class="target-custom-wrap" title="Enter custom initial starting score">
+          <input type="number" id="initial-custom-input" class="target-custom-input initial-custom-input" min="0" max="99999" placeholder="Custom" />
         </div>
       </div>
 

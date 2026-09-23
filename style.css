@@ -281,6 +281,39 @@ body.stream-mode .app-header:hover {
   -moz-appearance: textfield;
 }
 
+/* Initial Score Buttons & Input */
+.initial-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.initial-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.initial-btn.active {
+  background: var(--accent-emerald, #05ffa1);
+  color: #080a10;
+  box-shadow: 0 0 15px rgba(5, 255, 161, 0.4);
+}
+
+.initial-custom-input:focus,
+.initial-custom-input.active {
+  border-color: var(--accent-emerald, #05ffa1) !important;
+  color: #fff;
+  background: rgba(5, 255, 161, 0.1) !important;
+  box-shadow: 0 0 12px rgba(5, 255, 161, 0.35) !important;
+}
+
 
 /* Stopwatch Widget */
 .timer-widget {
