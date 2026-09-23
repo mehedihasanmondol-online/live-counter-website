@@ -27,8 +27,10 @@ class ConfettiEngine {
       this.canvas.style.width = '100vw';
       this.canvas.style.height = '100vh';
       this.canvas.style.pointerEvents = 'none';
-      this.canvas.style.zIndex = '9999';
+      this.canvas.style.zIndex = '13000';
       document.body.appendChild(this.canvas);
+    } else {
+      this.canvas.style.zIndex = '13000';
     }
     this.ctx = this.canvas.getContext('2d');
     this.resizeCanvas();

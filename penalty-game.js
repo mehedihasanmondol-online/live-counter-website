@@ -231,8 +231,22 @@
 
       // Close on Escape key & 'P' toggle
       window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && this.isOpen) {
-          this.closeGame();
+        if (e.key === 'Escape') {
+          const winnerModal = document.getElementById('winner-modal');
+          if (winnerModal && winnerModal.classList.contains('show')) {
+            winnerModal.classList.remove('show');
+            if (window.confettiEngine) window.confettiEngine.clear();
+            if (this.isOpen) {
+              this.resetBall();
+              this.resetKeeper();
+              this.hideOutcomeBanner();
+            }
+            e.stopPropagation();
+            return;
+          }
+          if (this.isOpen) {
+            this.closeGame();
+          }
         }
         if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.altKey) {
           if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -1173,9 +1187,15 @@
 
       // Advance turn & reset cleanly after 2.0s
       this.resetTimer = setTimeout(() => {
-        this.advanceToNextPlayer();
-        this.resetBall();
-        this.resetKeeper();
+        const targetScore = window.arenaApp ? window.arenaApp.getTargetScore() : 0;
+        const currentActiveP = players.find(p => p.id === this.activePlayerId);
+        const matchWon = targetScore > 0 && currentActiveP && currentActiveP.score >= targetScore;
+
+        if (!matchWon) {
+          this.advanceToNextPlayer();
+          this.resetBall();
+          this.resetKeeper();
+        }
       }, 2000);
     }
 

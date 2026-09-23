@@ -561,11 +561,12 @@
     // Check if target reached
     if (targetScore > 0 && player.score >= targetScore) {
       if (window.penaltyGame && window.penaltyGame.isOpen) {
-        // Celebrate inside penalty arena without abruptly opening home winner modal
+        // In penalty shootout: let ball finish rippling net (~550ms), then trigger full victory fanfare, confetti fireworks & winner modal
         winner = player;
-        if (window.soundEngine && window.soundEngine.playFanfare) window.soundEngine.playFanfare();
-        if (window.confettiEngine && window.confettiEngine.fireworks) window.confettiEngine.fireworks();
         renderArena();
+        setTimeout(() => {
+          triggerWin(player);
+        }, 550);
         return;
       }
       triggerWin(player);
@@ -1395,11 +1396,36 @@
       winnerModal.classList.remove('show');
       if (window.confettiEngine) window.confettiEngine.clear();
       renderArena();
+      if (window.penaltyGame && window.penaltyGame.isOpen) {
+        window.penaltyGame.resetBall();
+        window.penaltyGame.resetKeeper();
+        window.penaltyGame.hideOutcomeBanner();
+        window.penaltyGame.updateStatsUI();
+      }
     });
 
     closeWinnerBtn.addEventListener('click', () => {
       winnerModal.classList.remove('show');
       if (window.confettiEngine) window.confettiEngine.clear();
+      if (window.penaltyGame && window.penaltyGame.isOpen) {
+        window.penaltyGame.resetBall();
+        window.penaltyGame.resetKeeper();
+        window.penaltyGame.hideOutcomeBanner();
+        window.penaltyGame.updateStatsUI();
+      }
+    });
+
+    winnerModal.addEventListener('click', (e) => {
+      if (e.target === winnerModal) {
+        winnerModal.classList.remove('show');
+        if (window.confettiEngine) window.confettiEngine.clear();
+        if (window.penaltyGame && window.penaltyGame.isOpen) {
+          window.penaltyGame.resetBall();
+          window.penaltyGame.resetKeeper();
+          window.penaltyGame.hideOutcomeBanner();
+          window.penaltyGame.updateStatsUI();
+        }
+      }
     });
 
     // Player editor modal buttons

@@ -1043,6 +1043,18 @@ body.stream-mode .app-header:hover {
 }
 
 /* Winner Modal Specific Styling */
+#winner-modal {
+  z-index: 12000;
+}
+#winner-modal.show {
+  z-index: 12000 !important;
+}
+
+#confetti-canvas {
+  z-index: 13000 !important;
+  pointer-events: none;
+}
+
 .winner-card-content {
   padding: 40px 30px;
   text-align: center;
