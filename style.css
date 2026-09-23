@@ -463,17 +463,62 @@ body.stream-mode .app-header:hover {
   overflow: hidden;
   box-shadow: var(--shadow-card);
   transition: transform var(--transition-fast), border-color var(--transition-normal), box-shadow var(--transition-normal);
-  cursor: pointer;
-  touch-action: none; /* Crucial for custom touch swipe gestures */
+  cursor: default;
+  touch-action: none; /* Crucial for custom gestures */
 }
 
 .player-card:hover {
-  background: var(--bg-card-hover);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
-.player-card:active {
-  transform: scale(0.992);
+/* Full-bleed Player Background Artwork Layer */
+.card-bg-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 22px;
+}
+
+.card-bg-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  filter: brightness(0.78) contrast(1.18) saturate(1.1);
+  transform: scale(1.02);
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.4s ease;
+}
+
+.player-card:hover .card-bg-photo {
+  transform: scale(1.06);
+  filter: brightness(0.85) contrast(1.22) saturate(1.15);
+}
+
+.card-bg-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(7, 10, 18, 0.82) 0%,
+    rgba(7, 10, 18, 0.2) 30%,
+    rgba(7, 10, 18, 0.3) 65%,
+    rgba(7, 10, 18, 0.92) 100%
+  );
+}
+
+.card-bg-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(var(--player-color-rgb, 0, 240, 255), 0.16) 0%,
+    transparent 75%
+  );
+  mix-blend-mode: screen;
 }
 
 /* Leader Glow */
@@ -493,39 +538,47 @@ body.stream-mode .app-header:hover {
 
 /* Swipe Direction Highlights */
 .player-card.swipe-up-active {
-  transform: translateY(-8px);
+  transform: translateY(-6px);
   border-color: var(--accent-emerald);
   box-shadow: 0 0 35px rgba(5, 255, 161, 0.5);
 }
 .player-card.swipe-down-active {
-  transform: translateY(8px);
+  transform: translateY(6px);
   border-color: var(--accent-rose);
   box-shadow: 0 0 35px rgba(255, 42, 109, 0.5);
 }
 
 /* Card Header Section */
 .card-header {
-  padding: 16px 20px 10px;
+  padding: 14px 18px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   z-index: 10;
+  position: relative;
 }
 
 .player-meta {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  background: rgba(10, 14, 26, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  padding: 6px 14px 6px 8px;
+  border-radius: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .avatar-wrapper {
   position: relative;
-  width: 58px;
-  height: 58px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  padding: 2.5px;
-  background: linear-gradient(135deg, var(--player-color), rgba(255, 255, 255, 0.1));
-  box-shadow: 0 0 15px rgba(var(--player-color-rgb, 0, 240, 255), 0.4);
+  padding: 2px;
+  background: linear-gradient(135deg, var(--player-color), rgba(255, 255, 255, 0.2));
+  box-shadow: 0 0 12px rgba(var(--player-color-rgb, 0, 240, 255), 0.4);
   flex-shrink: 0;
 }
 
@@ -540,18 +593,18 @@ body.stream-mode .app-header:hover {
 
 .leader-badge {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: -6px;
+  right: -6px;
   background: var(--accent-gold);
   color: #080a10;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  box-shadow: 0 0 12px var(--accent-gold);
+  font-size: 0.75rem;
+  box-shadow: 0 0 10px var(--accent-gold);
   opacity: 0;
   transform: scale(0.5);
   transition: all var(--transition-spring);
@@ -575,7 +628,7 @@ body.stream-mode .app-header:hover {
 
 .player-name {
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: #fff;
   letter-spacing: 0.3px;
@@ -583,7 +636,7 @@ body.stream-mode .app-header:hover {
 }
 
 .player-tag {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 800;
   text-transform: uppercase;
   color: var(--player-color);
@@ -597,12 +650,14 @@ body.stream-mode .app-header:hover {
 }
 
 .card-icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-dim);
+  background: rgba(10, 14, 26, 0.65);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
+  padding: 8px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -610,12 +665,13 @@ body.stream-mode .app-header:hover {
 }
 
 .card-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 /* ==========================================================================
-   Interactive Score Zone (Big Bold Counter)
+   Interactive Score Zone & Draggable Counter
    ========================================================================== */
 
 .score-zone {
@@ -627,6 +683,8 @@ body.stream-mode .app-header:hover {
   position: relative;
   width: 100%;
   padding: 10px 20px;
+  z-index: 5;
+  min-height: 220px;
 }
 
 /* Visual swipe instruction hints */
@@ -634,44 +692,106 @@ body.stream-mode .app-header:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--text-dim);
-  opacity: 0.6;
+  color: rgba(255, 255, 255, 0.5);
+  opacity: 0.5;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
+  z-index: 6;
+  pointer-events: none;
 }
 .swipe-hint.hint-up {
-  margin-bottom: -10px;
+  position: absolute;
+  top: 10px;
 }
 .swipe-hint.hint-down {
-  margin-top: -10px;
+  position: absolute;
+  bottom: 10px;
 }
 .player-card:hover .swipe-hint {
-  opacity: 1;
+  opacity: 0.85;
 }
 
 .score-display-wrapper {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 100%;
   height: 100%;
+  overflow: visible;
+}
+
+/* Draggable Score Badge (Click to +1, Drag to move freely) */
+.score-draggable-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  z-index: 25;
+  padding: 6px 24px 2px;
+  border-radius: 24px;
+  background: rgba(8, 12, 22, 0.6);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1.5px dashed rgba(255, 255, 255, 0.25);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 25px rgba(var(--player-color-rgb, 0, 240, 255), 0.25);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  user-select: none;
+}
+
+.score-draggable-badge:hover {
+  background: rgba(8, 12, 22, 0.82);
+  border-color: var(--player-color);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 35px rgba(var(--player-color-rgb, 0, 240, 255), 0.45);
+}
+
+.score-draggable-badge.is-dragging {
+  cursor: grabbing !important;
+  transform: translate(-50%, -50%) scale(1.08);
+  border-color: var(--player-color);
+  border-style: solid;
+  background: rgba(6, 9, 18, 0.94);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 45px var(--player-color);
+  z-index: 60;
+  transition: transform 0.05s ease, box-shadow 0.1s ease;
+}
+
+.drag-grip-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--player-color);
+  opacity: 0.6;
+  margin-bottom: -6px;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.score-draggable-badge:hover .drag-grip-indicator,
+.score-draggable-badge.is-dragging .drag-grip-indicator {
+  opacity: 1;
 }
 
 .score-number {
   font-family: var(--font-score);
-  font-size: clamp(6.5rem, 16vw, 14rem);
-  line-height: 0.9;
+  font-size: clamp(5.5rem, 14vw, 12rem);
+  line-height: 0.92;
   letter-spacing: 2px;
   color: #fff;
   text-shadow: 
-    0 0 20px rgba(var(--player-color-rgb, 0, 240, 255), 0.5),
-    0 10px 40px rgba(0, 0, 0, 0.8);
+    0 0 20px rgba(var(--player-color-rgb, 0, 240, 255), 0.6),
+    0 10px 40px rgba(0, 0, 0, 0.9);
   transition: transform var(--transition-fast);
   will-change: transform;
+  pointer-events: none; /* Let the parent badge handle pointer events cleanly */
 }
 
 /* Pop animation on score increase */

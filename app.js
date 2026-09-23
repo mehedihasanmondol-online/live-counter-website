@@ -25,7 +25,9 @@
       avatar: 'assets/messi.jpg',
       score: 0,
       color: PALETTE[0].hex,
-      colorRgb: PALETTE[0].rgb
+      colorRgb: PALETTE[0].rgb,
+      posX: 50,
+      posY: 50
     },
     {
       id: 'p2',
@@ -34,7 +36,9 @@
       avatar: 'assets/ronaldo.jpg',
       score: 0,
       color: PALETTE[1].hex,
-      colorRgb: PALETTE[1].rgb
+      colorRgb: PALETTE[1].rgb,
+      posX: 50,
+      posY: 50
     }
   ];
 
@@ -121,6 +125,10 @@
       const savedPlayers = localStorage.getItem('live_counter_players');
       if (savedPlayers) {
         players = JSON.parse(savedPlayers);
+        players.forEach(p => {
+          if (p.posX === undefined || isNaN(p.posX)) p.posX = 50;
+          if (p.posY === undefined || isNaN(p.posY)) p.posY = 50;
+        });
       } else {
         players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
       }
@@ -199,10 +207,17 @@
       card.style.setProperty('--player-color-rgb', player.colorRgb);
 
       card.innerHTML = `
+        <!-- Full-bleed Player Background Artwork Layer -->
+        <div class="card-bg-layer">
+          <img src="${player.avatar}" alt="${player.name}" class="card-bg-photo" onerror="this.style.display='none'">
+          <div class="card-bg-gradient"></div>
+          <div class="card-bg-glow"></div>
+        </div>
+
         <div class="card-header">
           <div class="player-meta">
             <div class="avatar-wrapper">
-              <img src="${player.avatar}" alt="${player.name}" class="avatar-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'58\\' height=\\'58\\' viewBox=\\'0 0 24 24\\' fill=\\'%2354627d\\'><path d=\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\'/></svg>'">
+              <img src="${player.avatar}" alt="${player.name}" class="avatar-img" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'44\\' height=\\'44\\' viewBox=\\'0 0 24 24\\' fill=\\'%2354627d\\'><path d=\\'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z\\'/></svg>'">
               <div class="leader-badge" title="Match Leader">👑</div>
             </div>
             <div class="player-details">
@@ -213,8 +228,14 @@
             </div>
           </div>
           <div class="card-actions">
+            <button class="card-icon-btn reset-pos-btn" title="Center Counter Position" data-id="${player.id}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <polyline points="3 3 3 8 8 8"></polyline>
+              </svg>
+            </button>
             <button class="card-icon-btn edit-player-btn" title="Edit Player" data-id="${player.id}">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
             </button>
           </div>
         </div>
@@ -225,8 +246,20 @@
             <span>Swipe Up +1</span>
           </div>
 
-          <div class="score-display-wrapper">
-            <div class="score-number" id="score-text-${player.id}">${player.score}</div>
+          <div class="score-display-wrapper" id="score-wrapper-${player.id}">
+            <div class="score-draggable-badge" id="score-drag-${player.id}" data-id="${player.id}"
+                 style="left: ${player.posX !== undefined ? player.posX : 50}%; top: ${player.posY !== undefined ? player.posY : 50}%;"
+                 title="Click to +1 | Drag to reposition anywhere on card">
+              <div class="drag-grip-indicator">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="9" cy="5" r="2"></circle><circle cx="15" cy="5" r="2"></circle>
+                  <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
+                  <circle cx="9" cy="19" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
+                </svg>
+                <span>DRAG TO MOVE</span>
+              </div>
+              <div class="score-number" id="score-text-${player.id}">${player.score}</div>
+            </div>
           </div>
 
           <div class="swipe-hint hint-down">
@@ -269,19 +302,91 @@
   }
 
   /* ==========================================================================
-     Touch, Drag & Swipe Gestures (Up: +1, Down: -1, Click: +1)
+     Touch, Drag & Swipe Gestures (Number Drag, Swipe Up/Down, Card Click)
      ========================================================================== */
 
   function bindCardGestures(card, player) {
+    const scoreZone = card.querySelector('.score-zone');
+    const dragBadge = card.querySelector('.score-draggable-badge');
+
+    // --- 1. Draggable Counter Number Logic ---
+    if (dragBadge) {
+      let startBadgeX = 0;
+      let startBadgeY = 0;
+      let isDraggingBadge = false;
+      let badgeMoved = false;
+
+      dragBadge.addEventListener('pointerdown', (e) => {
+        // Stop event from triggering card background swipe
+        e.stopPropagation();
+        startBadgeX = e.clientX;
+        startBadgeY = e.clientY;
+        isDraggingBadge = true;
+        badgeMoved = false;
+        dragBadge.setPointerCapture(e.pointerId);
+      });
+
+      dragBadge.addEventListener('pointermove', (e) => {
+        if (!isDraggingBadge) return;
+        const dx = e.clientX - startBadgeX;
+        const dy = e.clientY - startBadgeY;
+
+        if (Math.hypot(dx, dy) > 5) {
+          badgeMoved = true;
+          dragBadge.classList.add('is-dragging');
+
+          const cardRect = card.getBoundingClientRect();
+          const relX = e.clientX - cardRect.left;
+          const relY = e.clientY - cardRect.top;
+
+          // Clamped boundaries (keeps counter nicely visible inside the card)
+          const percentX = Math.max(14, Math.min(86, (relX / cardRect.width) * 100));
+          const percentY = Math.max(18, Math.min(82, (relY / cardRect.height) * 100));
+
+          dragBadge.style.left = `${percentX.toFixed(2)}%`;
+          dragBadge.style.top = `${percentY.toFixed(2)}%`;
+        }
+      });
+
+      const finishBadgeDrag = (e) => {
+        if (!isDraggingBadge) return;
+        isDraggingBadge = false;
+        dragBadge.classList.remove('is-dragging');
+
+        if (badgeMoved) {
+          player.posX = parseFloat(dragBadge.style.left);
+          player.posY = parseFloat(dragBadge.style.top);
+          saveState();
+        } else {
+          // If clicked without dragging -> +1
+          modifyScore(player.id, 1, e.clientX, e.clientY);
+        }
+      };
+
+      dragBadge.addEventListener('pointerup', finishBadgeDrag);
+      dragBadge.addEventListener('pointercancel', () => {
+        isDraggingBadge = false;
+        dragBadge.classList.remove('is-dragging');
+      });
+
+      // Double-click badge to quickly re-center
+      dragBadge.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        player.posX = 50;
+        player.posY = 50;
+        dragBadge.style.left = '50%';
+        dragBadge.style.top = '50%';
+        saveState();
+      });
+    }
+
+    // --- 2. Card Background Swipe Logic (Swipe Up / Down) ---
     let startY = 0;
     let startX = 0;
     let isDragging = false;
     let hasMovedSignificantly = false;
     const threshold = 35; // Pixels needed for swipe
 
-    const scoreZone = card.querySelector('.score-zone');
-
-    // Pointer events handle both Touch and Mouse seamlessly
     scoreZone.addEventListener('pointerdown', (e) => {
       startY = e.clientY;
       startX = e.clientX;
@@ -325,7 +430,7 @@
           modifyScore(player.id, -1, e.clientX, e.clientY);
         }
       } else {
-        // Simple Click / Tap on card -> +1
+        // Simple Click / Tap on card background -> +1
         modifyScore(player.id, 1, e.clientX, e.clientY);
       }
     };
@@ -621,7 +726,9 @@
         avatar,
         score: 0,
         color: selectedColor,
-        colorRgb: selectedColorRgb
+        colorRgb: selectedColorRgb,
+        posX: 50,
+        posY: 50
       });
     }
 
@@ -643,7 +750,7 @@
      ========================================================================== */
 
   function setupEventListeners() {
-    // Arena delegate for quick buttons and edit triggers
+    // Arena delegate for quick buttons, edit triggers, and center reset
     arenaGrid.addEventListener('click', (e) => {
       const quickBtn = e.target.closest('.quick-btn');
       if (quickBtn) {
@@ -651,6 +758,20 @@
         const id = quickBtn.dataset.id;
         const delta = parseInt(quickBtn.dataset.delta, 10);
         modifyScore(id, delta, e.clientX, e.clientY);
+        return;
+      }
+
+      const resetPosBtn = e.target.closest('.reset-pos-btn');
+      if (resetPosBtn) {
+        e.stopPropagation();
+        const id = resetPosBtn.dataset.id;
+        const p = players.find(x => x.id === id);
+        if (p) {
+          p.posX = 50;
+          p.posY = 50;
+          saveState();
+          renderArena();
+        }
         return;
       }
 
