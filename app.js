@@ -99,12 +99,7 @@
 
   // Random Mystery Goal Elements & State
   const randomGoalBtn = document.getElementById('random-goal-btn');
-  const luckyGoalToast = document.getElementById('lucky-goal-toast');
-  const luckyToastAvatar = document.getElementById('lucky-toast-avatar');
-  const luckyToastName = document.getElementById('lucky-toast-name');
-
   let isRandomShuffling = false;
-  let luckyGoalToastTimer = null;
 
   /* ==========================================================================
      Initialization & Storage
@@ -575,12 +570,6 @@
 
     isRandomShuffling = true;
 
-    if (luckyGoalToastTimer) {
-      clearTimeout(luckyGoalToastTimer);
-      luckyGoalToastTimer = null;
-    }
-    if (luckyGoalToast) luckyGoalToast.classList.remove('show');
-
     // Button busy state
     if (randomGoalBtn) {
       randomGoalBtn.classList.add('is-shuffling');
@@ -712,18 +701,22 @@
       winCard.classList.add('shuffle-winner-card');
     }
 
-    // Show sleek top broadcast pill (no modal!)
-    if (luckyGoalToast) {
-      if (luckyToastAvatar) luckyToastAvatar.src = winnerPlayer.avatar;
-      if (luckyToastName) luckyToastName.innerText = winnerPlayer.name;
-      luckyGoalToast.classList.add('show');
+    // Subtle congratulation badge directly on the winning card only ("sudhu je player goal hoieche sei card e suveccha, kintu halka")
+    if (winCard) {
+      const existingBadge = winCard.querySelector('.card-mini-celebration');
+      if (existingBadge) existingBadge.remove();
 
-      luckyGoalToastTimer = setTimeout(() => {
-        luckyGoalToast.classList.remove('show');
-      }, 3200);
+      const miniCeleb = document.createElement('div');
+      miniCeleb.className = 'card-mini-celebration';
+      miniCeleb.innerHTML = '<span class="mini-celeb-sparkle">✨</span><span class="mini-celeb-text">GOAL +1</span>';
+      winCard.appendChild(miniCeleb);
+
+      setTimeout(() => {
+        if (miniCeleb.parentNode) miniCeleb.remove();
+      }, 1600);
     }
 
-    // --- CRITICAL USER REQUIREMENT: COUNTER NUMBER ZOOM & GROW EFFECT ---
+    // --- COUNTER NUMBER ZOOM & GROW EFFECT ---
     // "je jiteche tar counter number ta ektu zoom hoe bere abar normal size hobe."
     const scoreBadge = document.getElementById(`score-drag-${winnerPlayer.id}`);
     const scoreText = document.getElementById(`score-text-${winnerPlayer.id}`);
@@ -745,19 +738,9 @@
       modifyScore(winnerPlayer.id, 1, null, null, true);
     }, 320);
 
-    // Audio fanfare & celebratory stadium sounds
-    if (window.soundEngine) {
-      if (window.soundEngine.playCasinoChime) window.soundEngine.playCasinoChime();
-      if (window.soundEngine.playWhistle) window.soundEngine.playWhistle();
-      setTimeout(() => {
-        if (window.soundEngine.playCrowdRoar) window.soundEngine.playCrowdRoar();
-        if (window.soundEngine.playFanfare) window.soundEngine.playFanfare();
-      }, 100);
-    }
-
-    // Confetti cannon blast across the arena!
-    if (window.confettiEngine && window.confettiEngine.fireworks) {
-      window.confettiEngine.fireworks();
+    // Subtle celebration chime (gentle melodic chime, no loud crowd roar or full-screen fireworks)
+    if (window.soundEngine && window.soundEngine.playCasinoChime) {
+      window.soundEngine.playCasinoChime();
     }
 
     // Clean up zoom classes, refresh arena state, and restore button state after animation settles
