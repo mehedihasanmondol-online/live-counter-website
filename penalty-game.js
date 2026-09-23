@@ -384,10 +384,12 @@
                   <div class="player-title-row">
                     <span class="player-name">${escapeHtml(p.name)}</span>
                   </div>
-                  <span class="player-tag">${escapeHtml(p.tag || `PLAYER ${idx + 1}`)}</span>
+                  <div class="player-sub-row">
+                    <span class="player-tag">${escapeHtml(p.tag || `PLAYER ${idx + 1}`)}</span>
+                    ${isCurrent ? '<span class="penalty-kicking-pill">⚽ KICKING</span>' : ''}
+                  </div>
                 </div>
               </div>
-              ${isCurrent ? '<div class="penalty-kicking-pill">KICKING ⚽</div>' : ''}
             </div>
 
             <!-- Big Draggable Counter Badge in Center of Player Image -->
