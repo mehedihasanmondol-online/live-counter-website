@@ -1,10 +1,10 @@
 /**
  * Service Worker - Live Arena Counter Assistant
- * Version: arena-counter-v1.0.0
+ * Version: arena-counter-v1.0.1
  * Provides 100% offline access, instant loading, and asset caching
  */
 
-const CACHE_NAME = 'arena-counter-v1.0.0';
+const CACHE_NAME = 'arena-counter-v1.0.2';
 const FONT_CACHE_NAME = 'arena-counter-fonts-v1';
 
 // Essential static resources for offline execution
@@ -83,16 +83,27 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Handle Google Fonts requests (CSS & WOFF2)
+  // 1. Google Fonts requests (CSS & WOFF2): Cache-First
   if (url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com') {
     event.respondWith(handleFontRequest(req));
     return;
   }
 
-  // Handle Navigation requests (HTML pages): Network-First with Cache Fallback
-  if (req.mode === 'navigate') {
+  // 2. Scripts (.js), Stylesheets (.css), HTML pages, Manifests: NETWORK-FIRST
+  // This guarantees that any script or style update is fetched and applied immediately!
+  const isCodeOrMarkup = 
+    req.mode === 'navigate' ||
+    req.destination === 'script' ||
+    req.destination === 'style' ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.endsWith('.html') ||
+    url.pathname.endsWith('.json') ||
+    url.pathname.endsWith('.webmanifest');
+
+  if (isCodeOrMarkup) {
     event.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
@@ -101,38 +112,36 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(async () => {
-          // Offline fallback
-          const cached = await caches.match(req);
+          // Offline fallback when no internet/server connection
+          const cached = await caches.match(req, { ignoreSearch: true });
           if (cached) return cached;
-          const fallback = await caches.match('./index.html') || await caches.match('./');
-          if (fallback) return fallback;
-          return new Response('Arena Counter is currently offline. Please reconnect to load the app.', {
-            headers: { 'Content-Type': 'text/plain' }
-          });
+          if (req.mode === 'navigate') {
+            const fallback = (await caches.match('./index.html', { ignoreSearch: true })) || (await caches.match('./', { ignoreSearch: true }));
+            if (fallback) return fallback;
+            return new Response('Arena Counter is currently offline. Please reconnect to load the app.', {
+              headers: { 'Content-Type': 'text/plain' }
+            });
+          }
+          return new Response('Offline resource unavailable', { status: 503, statusText: 'Offline' });
         })
     );
     return;
   }
 
-  // Handle same-origin static assets: Stale-While-Revalidate
+  // 3. Static Media Assets (Images, Audio, Icons): Cache-First with Network Fallback
   if (url.origin === self.location.origin) {
     event.respondWith(
-      caches.match(req).then((cachedResponse) => {
-        const fetchPromise = fetch(req)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const responseToCache = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put(req, responseToCache));
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Network failure is expected when offline
-            return cachedResponse;
-          });
-
-        // Return cached version immediately if present, otherwise await network
-        return cachedResponse || fetchPromise;
+      caches.match(req, { ignoreSearch: true }).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        return fetch(req).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, responseToCache));
+          }
+          return networkResponse;
+        });
       })
     );
   }

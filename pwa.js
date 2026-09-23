@@ -14,14 +14,38 @@
   const updateToast = document.getElementById('pwa-update-toast');
   const updateActionBtn = document.getElementById('pwa-update-btn');
 
-  // 1. Register Service Worker
+  // Automatic Cache Purge: Wipes legacy caches on client whenever version bumps
+  const APP_VERSION = 'v1.0.2';
+  try {
+    const storedVersion = localStorage.getItem('arena_counter_version');
+    if (storedVersion !== APP_VERSION) {
+      localStorage.setItem('arena_counter_version', APP_VERSION);
+      if ('caches' in window) {
+        caches.keys().then((names) => {
+          return Promise.all(names.map((name) => caches.delete(name)));
+        }).then(() => {
+          console.log('[PWA] Stale caches purged for version:', APP_VERSION);
+        });
+      }
+    }
+  } catch (e) {}
+
+  // 1. Register Service Worker with instant updates
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      // Register with relative scope to work across root or subfolder deployments
+      // updateViaCache: 'none' bypasses HTTP caching for sw.js itself
       navigator.serviceWorker
-        .register('./sw.js', { scope: './' })
+        .register('./sw.js', { scope: './', updateViaCache: 'none' })
         .then((registration) => {
-          console.log('[PWA] Service Worker registered successfully with scope:', registration.scope);
+          console.log('[PWA] Service Worker registered with scope:', registration.scope);
+
+          // Actively check for updates immediately
+          registration.update().catch(() => {});
+
+          // If a new worker is waiting, activate it immediately
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
 
           // Check if an update was found while registering
           registration.addEventListener('updatefound', () => {
@@ -30,16 +54,11 @@
 
             installingWorker.addEventListener('statechange', () => {
               if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                console.log('[PWA] New version ready to activate.');
-                showUpdateToast(installingWorker);
+                console.log('[PWA] New version ready, activating immediately...');
+                installingWorker.postMessage({ type: 'SKIP_WAITING' });
               }
             });
           });
-
-          // If there's already a worker waiting
-          if (registration.waiting) {
-            showUpdateToast(registration.waiting);
-          }
         })
         .catch((err) => {
           console.warn('[PWA] Service Worker registration failed:', err);

@@ -2886,18 +2886,82 @@ body.stream-mode .random-goal-floating-btn {
 }
 
 @media (max-width: 900px) {
+  /* Completely hide the left flank panel on mobile */
   .penalty-flank-widget.left {
-    max-width: 180px;
-    left: 6px;
-    top: 80px;
-    padding: 10px 8px;
+    display: none !important;
   }
+
+  /* Reset right flank panel to transparent container on mobile */
   .penalty-flank-widget.right {
-    max-width: 165px;
-    right: 6px;
-    top: 80px;
-    padding: 10px 8px;
+    position: static !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+    pointer-events: none !important;
   }
+
+  /* Hide all contents of right panel except the cross button */
+  .penalty-flank-widget.right .flank-subtitle,
+  .penalty-flank-widget.right .flank-actions-controls,
+  .penalty-flank-widget.right .flank-shortcuts-info {
+    display: none !important;
+  }
+
+  .penalty-flank-widget.right .flank-widget-header,
+  .penalty-flank-widget.right .flank-header-row {
+    display: contents !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Keep ONLY the cross button in the exact top right corner on mobile */
+  .flank-close-btn,
+  #close-penalty-btn {
+    display: flex !important;
+    position: fixed !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 10050 !important;
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    border-radius: 12px !important;
+    background: rgba(14, 18, 30, 0.92) !important;
+    border: 1.5px solid rgba(255, 42, 109, 0.6) !important;
+    color: #ff2a6d !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.8), 0 0 14px rgba(255, 42, 109, 0.4) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.15s ease !important;
+  }
+
+  .flank-close-btn:hover,
+  #close-penalty-btn:hover {
+    background: #ff2a6d !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 20px rgba(255, 42, 109, 0.8) !important;
+    transform: scale(1.06) !important;
+  }
+
+  .flank-close-btn:active,
+  #close-penalty-btn:active {
+    transform: scale(0.92) !important;
+    background: rgba(255, 42, 109, 0.3) !important;
+  }
+
   .flank-arena-title {
     font-size: 0.85rem;
   }
@@ -2942,7 +3006,7 @@ body.stream-mode .random-goal-floating-btn {
     border-radius: 12px;
   }
   .penalty-arena-header {
-    padding: 8px 12px;
+    padding: 8px 52px 8px 12px;
     gap: 8px;
   }
   .penalty-outcome-banner {

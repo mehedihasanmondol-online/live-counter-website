@@ -44,13 +44,14 @@ DirectoryIndex index.html
   ExpiresActive On
   ExpiresDefault "access plus 1 month"
 
-  # HTML: always revalidate for instant live updates
+  # HTML, CSS, JS: always revalidate for instant live updates without caching lag
   ExpiresByType text/html "access plus 0 seconds"
-  ExpiresByType application/manifest+json "access plus 1 day"
+  ExpiresByType text/css "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 0 seconds"
+  ExpiresByType application/json "access plus 0 seconds"
+  ExpiresByType application/manifest+json "access plus 0 seconds"
 
-  # Static Assets: CSS, JS, Audio, Images
-  ExpiresByType text/css "access plus 1 week"
-  ExpiresByType application/javascript "access plus 1 week"
+  # Media Assets (Images & Audio): Cache for performance
   ExpiresByType image/jpeg "access plus 1 month"
   ExpiresByType image/png "access plus 1 month"
   ExpiresByType image/webp "access plus 1 month"
@@ -59,13 +60,18 @@ DirectoryIndex index.html
   ExpiresByType audio/wav "access plus 1 month"
 </IfModule>
 
-# 5. Security & Service Worker Headers
+# 5. Security & Real-Time Code Headers
 <IfModule mod_headers.c>
   Header always set X-Content-Type-Options "nosniff"
   Header always set X-Frame-Options "SAMEORIGIN"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
 
-  # Service Worker must always revalidate
+  # Prevent browsers from caching code files so updates reflect immediately
+  <FilesMatch "\.(html|css|js|json|webmanifest)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # Service Worker must always revalidate without any store
   <Files "sw.js">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
     Header set Pragma "no-cache"
