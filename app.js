@@ -99,7 +99,10 @@
 
   // Random Mystery Goal Elements & State
   const randomGoalBtn = document.getElementById('random-goal-btn');
+  const screenMarkedBanner = document.getElementById('screen-marked-name-banner');
+  const screenMarkedNameText = document.getElementById('screen-marked-name-text');
   let isRandomShuffling = false;
+  let screenMarkedBannerTimer = null;
 
   /* ==========================================================================
      Initialization & Storage
@@ -570,6 +573,15 @@
 
     isRandomShuffling = true;
 
+    // Reset centered screen winner name banner
+    if (screenMarkedBannerTimer) {
+      clearTimeout(screenMarkedBannerTimer);
+      screenMarkedBannerTimer = null;
+    }
+    if (screenMarkedBanner) {
+      screenMarkedBanner.classList.remove('show');
+    }
+
     // Button busy state
     if (randomGoalBtn) {
       randomGoalBtn.classList.add('is-shuffling');
@@ -701,7 +713,7 @@
       winCard.classList.add('shuffle-winner-card');
     }
 
-    // Subtle congratulation badge directly on the winning card only ("sudhu je player goal hoieche sei card e suveccha, kintu halka")
+    // Subtle congratulation badge directly on the winning card ("kintu halka")
     if (winCard) {
       const existingBadge = winCard.querySelector('.card-mini-celebration');
       if (existingBadge) existingBadge.remove();
@@ -714,6 +726,21 @@
       setTimeout(() => {
         if (miniCeleb.parentNode) miniCeleb.remove();
       }, 1600);
+    }
+
+    // --- DISPLAY PLAYER NAME BIG IN SCREEN CENTER ("kintu center hobe") ---
+    if (screenMarkedBanner && screenMarkedNameText) {
+      screenMarkedNameText.innerText = winnerPlayer.name.toUpperCase();
+      screenMarkedBanner.classList.remove('show');
+      void screenMarkedBanner.offsetWidth; // force reflow
+      screenMarkedBanner.classList.add('show');
+
+      if (screenMarkedBannerTimer) {
+        clearTimeout(screenMarkedBannerTimer);
+      }
+      screenMarkedBannerTimer = setTimeout(() => {
+        screenMarkedBanner.classList.remove('show');
+      }, 4500);
     }
 
     // --- COUNTER NUMBER ZOOM & GROW EFFECT ---
