@@ -10,7 +10,6 @@
   let newWorkerWaiting = false;
 
   // DOM Elements
-  const installBtn = document.getElementById('pwa-install-btn');
   const offlineBadge = document.getElementById('pwa-offline-badge');
   const updateToast = document.getElementById('pwa-update-toast');
   const updateActionBtn = document.getElementById('pwa-update-btn');
@@ -72,49 +71,16 @@
     }
   }
 
-  // 3. Handle Install Prompt (Desktop & Android Chrome/Edge)
+  // 3. Handle Install Prompt
   window.addEventListener('beforeinstallprompt', (e) => {
     // Prevent browser default mini-infobar
     e.preventDefault();
     deferredInstallPrompt = e;
-
-    console.log('[PWA] Captured beforeinstallprompt event.');
-    if (installBtn) {
-      installBtn.classList.remove('hidden');
-      installBtn.setAttribute('aria-hidden', 'false');
-    }
   });
-
-  if (installBtn) {
-    installBtn.addEventListener('click', async () => {
-      if (!deferredInstallPrompt) {
-        // Fallback info for iOS / already installed
-        if (isIos()) {
-          showToast('📲 To install on iOS: Tap Share and select "Add to Home Screen"');
-        } else {
-          showToast('Arena Counter is ready for desktop & mobile installation.');
-        }
-        return;
-      }
-
-      // Show native install dialog
-      deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      console.log(`[PWA] Install prompt outcome: ${outcome}`);
-
-      // Clear prompt
-      deferredInstallPrompt = null;
-      installBtn.classList.add('hidden');
-      installBtn.setAttribute('aria-hidden', 'true');
-    });
-  }
 
   // 4. Handle Successful Installation
   window.addEventListener('appinstalled', () => {
     console.log('[PWA] Arena Counter was installed successfully!');
-    if (installBtn) {
-      installBtn.classList.add('hidden');
-    }
     showToast('🎉 Arena Counter installed! Scoreboard & shootout work 100% offline.');
   });
 
