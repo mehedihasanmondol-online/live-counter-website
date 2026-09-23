@@ -274,17 +274,6 @@
               <div class="target-progress-fill" style="width: ${progressPercent}%;"></div>
             </div>
           ` : ''}
-          <div class="quick-controls">
-            <button class="quick-btn dec" data-id="${player.id}" data-delta="-1" title="Subtract 1">
-              -1
-            </button>
-            <button class="quick-btn inc" data-id="${player.id}" data-delta="1" title="Add 1">
-              +1
-            </button>
-            <button class="quick-btn inc" data-id="${player.id}" data-delta="5" title="Add 5">
-              +5
-            </button>
-          </div>
         </div>
       `;
 
@@ -758,16 +747,8 @@
      ========================================================================== */
 
   function setupEventListeners() {
-    // Arena delegate for quick buttons, edit triggers, and center reset
+    // Arena delegate for edit triggers and center reset
     arenaGrid.addEventListener('click', (e) => {
-      const quickBtn = e.target.closest('.quick-btn');
-      if (quickBtn) {
-        e.stopPropagation();
-        const id = quickBtn.dataset.id;
-        const delta = parseInt(quickBtn.dataset.delta, 10);
-        modifyScore(id, delta, e.clientX, e.clientY);
-        return;
-      }
 
       const resetPosBtn = e.target.closest('.reset-pos-btn');
       if (resetPosBtn) {
