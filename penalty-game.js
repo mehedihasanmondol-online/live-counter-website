@@ -853,45 +853,91 @@
 
       const pos = this.getCanvasPointerPos(e);
 
-      let deltaX = pos.x - this.ball.dragStartX;
-      let deltaY = pos.y - this.ball.dragStartY;
-
-      if (deltaY > 20 && Math.abs(deltaY) > Math.abs(deltaX)) {
-        deltaX = -deltaX;
-        deltaY = -deltaY;
-      }
-
+      const deltaX = pos.x - this.ball.dragStartX;
+      const deltaY = pos.y - this.ball.dragStartY;
       const swipeDistance = Math.hypot(deltaX, deltaY);
-      if (swipeDistance < 15) {
-        this.shootTowardsTarget(pos.x, pos.y);
+
+      // 1. Backward / downward drag: "ball jeno pichone marte na pare"
+      // Soccer rule: Penalty kick cannot be struck backwards away from goal!
+      if (deltaY >= -15) {
+        this.resetBall();
         return;
       }
 
+      // 2. Accidental tap or dropped near penalty spot: "othoba ektu dure fele dile o"
+      if (swipeDistance < 25) {
+        // Only allow shoot if deliberately tapped high in the goal area
+        if (pos.y <= this.goal.bottom + 20) {
+          this.shootTowardsTarget(pos.x, pos.y);
+          return;
+        }
+        // Dropped near ball or on the grass -> cancel & reset to penalty spot
+        this.resetBall();
+        return;
+      }
+
+      // 3. Legitimate forward kick swipe towards the goal:
       this.launchBall(deltaX, deltaY, swipeDistance);
     }
 
     shootTowardsTarget(targetX, targetY) {
-      const deltaX = targetX - this.ball.x;
-      const deltaY = targetY - this.ball.y;
-      const dist = Math.hypot(deltaX, deltaY);
-      this.launchBall(deltaX, deltaY, Math.min(dist * 0.45, 140));
-    }
+      // Must be aiming at or above the goal line
+      if (targetY > this.goal.bottom + 25) {
+        this.resetBall();
+        return;
+      }
 
-    launchBall(deltaX, deltaY, powerMag) {
       this.ball.state = 'flying';
       this.lastKickTimestamp = Date.now();
       this.setKickerStatus('kicked');
       this.kicker.kickProgress = 1.0;
 
-      const clampedPower = Math.min(Math.max(powerMag / 80, 0.6), 1.5);
-      const aimFactor = 2.4 * clampedPower;
-      const targetScreenX = this.ball.x + deltaX * aimFactor;
-      const targetScreenY = this.ball.y + deltaY * aimFactor;
+      const clampedPower = 1.0;
+      this.ball.vz = 0.024 * (0.8 + clampedPower * 0.4);
+      this.ball.vx = (targetX - this.ball.x) * this.ball.vz;
+      this.ball.vy = (targetY - this.ball.y) * this.ball.vz;
+      this.ball.spin = ((targetX - this.width / 2) / 100) * 0.4;
 
+      if (this.soundEnabled && window.soundEngine && window.soundEngine.playKick) {
+        window.soundEngine.playKick(clampedPower);
+      }
+
+      this.triggerKeeperDive(targetX, targetY, clampedPower);
+    }
+
+    launchBall(deltaX, deltaY, powerMag) {
+      // Ensure backwards kick is strictly rejected
+      if (deltaY >= -15) {
+        this.resetBall();
+        return;
+      }
+
+      this.ball.state = 'flying';
+      this.lastKickTimestamp = Date.now();
+      this.setKickerStatus('kicked');
+      this.kicker.kickProgress = 1.0;
+
+      // Reference swipe distance: swipe of ~85px maps directly to goal center
+      const refSwipe = Math.max(65, Math.min(130, this.height * 0.13));
+
+      // Vertical aim mapping from forward swipe (deltaY is negative):
+      // Ratio = 1.0 -> center of the goal
+      // Ratio < 0.6 -> shot is short / into the ground (missed)
+      // Ratio > 1.4 -> shot blazes over the crossbar (missed)
+      const verticalAimRatio = (-deltaY) / refSwipe;
+      const targetScreenY = this.goal.bottom - (this.goal.bottom - this.goal.top) * ((verticalAimRatio - 0.55) / 0.75);
+
+      // Horizontal aim mapping:
+      // deltaX = 0 -> center of goal
+      // deltaX / (refSwipe * 0.7) = +/- 1.0 -> left/right posts
+      const horizontalAimRatio = deltaX / (refSwipe * 0.7);
+      const targetScreenX = (this.width / 2) + horizontalAimRatio * (this.goal.width * 0.52);
+
+      const clampedPower = Math.min(Math.max(powerMag / 80, 0.65), 1.5);
       this.ball.vz = 0.024 * (0.8 + clampedPower * 0.4);
       this.ball.vx = (targetScreenX - this.ball.x) * this.ball.vz;
       this.ball.vy = (targetScreenY - this.ball.y) * this.ball.vz;
-      this.ball.spin = (deltaX / 120) * 0.8;
+      this.ball.spin = (deltaX / 100) * 0.7;
 
       if (this.soundEnabled && window.soundEngine && window.soundEngine.playKick) {
         window.soundEngine.playKick(clampedPower);
@@ -983,13 +1029,13 @@
         this.ball.x += this.ball.vx * 0.2;
         this.ball.y += this.ball.vy * 0.2;
         this.ball.y = Math.min(this.ball.y, this.goal.bottom - 10);
-      } else if (this.ball.state === 'post' || this.ball.state === 'saved') {
+      } else if (this.ball.state === 'post' || this.ball.state === 'saved' || this.ball.state === 'missed') {
         this.ball.x += this.ball.vx;
         this.ball.y += this.ball.vy;
         this.ball.vy += 0.4;
         if (this.ball.y > this.height - 20) {
           this.ball.y = this.height - 20;
-          this.ball.vy = -this.ball.vy * 0.45;
+          this.ball.vy = -this.ball.vy * 0.4;
           this.ball.vx *= 0.7;
         }
       }
@@ -1041,12 +1087,16 @@
         return;
       }
 
-      // 2. Off target
-      const isOutsideLeft = bx < gl - ballRad;
-      const isOutsideRight = bx > gr + ballRad;
-      const isOverBar = by < gt - ballRad;
+      // 2. Off target - "goal post e na dhukle kokhonoi goal hobena"
+      // Ball must strictly enter within the goal frame:
+      // - horizontally inside left post (gl) and right post (gr)
+      // - vertically below crossbar (gt) and above goal line/ground (gb)
+      const isOutsideLeft = bx < gl + ballRad * 0.15;
+      const isOutsideRight = bx > gr - ballRad * 0.15;
+      const isOverBar = by < gt + ballRad * 0.15;
+      const isBelowGoalLine = by > gb + ballRad * 0.35; // Ball below goal line/ground -> MISSED!
 
-      if (isOutsideLeft || isOutsideRight || isOverBar) {
+      if (isOutsideLeft || isOutsideRight || isOverBar || isBelowGoalLine) {
         this.handleOutcome('missed', bx, by);
         return;
       }
@@ -1056,6 +1106,7 @@
       if (keeperHit) {
         this.handleOutcome('saved', bx, by);
       } else {
+        // Certified legitimate goal inside the goal post!
         this.handleOutcome('goal', bx, by);
       }
     }
@@ -1922,20 +1973,38 @@
       const curX = this.ball.dragCurrentX;
       const curY = this.ball.dragCurrentY;
 
-      let dx = curX - this.ball.dragStartX;
-      let dy = curY - this.ball.dragStartY;
+      const dx = curX - this.ball.dragStartX;
+      const dy = curY - this.ball.dragStartY;
 
-      if (dy > 0) {
-        dx = -dx;
-        dy = -dy;
+      // If user drags backwards/downwards (dy >= -10):
+      if (dy >= -10) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255, 42, 109, 0.7)';
+        ctx.fillStyle = 'rgba(255, 42, 109, 0.2)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.arc(bx, by, this.ball.radius * 1.6, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fill();
+
+        ctx.font = '700 12px Inter, sans-serif';
+        ctx.fillStyle = '#ff2a6d';
+        ctx.textAlign = 'center';
+        ctx.fillText('SWIPE FORWARD TO SHOOT ⬆', bx, by + 40);
+        ctx.restore();
+        return;
       }
 
       const dist = Math.hypot(dx, dy);
       const power = Math.min(dist / 80, 1.5);
 
-      const aimFactor = 2.4 * Math.max(power, 0.6);
-      const targetX = bx + dx * aimFactor;
-      const targetY = by + dy * aimFactor;
+      const refSwipe = Math.max(65, Math.min(130, this.height * 0.13));
+      const verticalAimRatio = (-dy) / refSwipe;
+      const targetY = this.goal.bottom - (this.goal.bottom - this.goal.top) * ((verticalAimRatio - 0.55) / 0.75);
+
+      const horizontalAimRatio = dx / (refSwipe * 0.7);
+      const targetX = (this.width / 2) + horizontalAimRatio * (this.goal.width * 0.52);
 
       ctx.save();
       ctx.setLineDash([8, 8]);
@@ -1945,8 +2014,8 @@
       ctx.beginPath();
       ctx.moveTo(bx, by);
       ctx.quadraticCurveTo(
-        (bx + targetX) / 2 + (dx * 0.2),
-        Math.min(by, targetY) - 40,
+        (bx + targetX) / 2 + (dx * 0.15),
+        Math.min(by, targetY) - 30,
         targetX,
         targetY
       );
