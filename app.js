@@ -250,14 +250,6 @@
             <div class="score-draggable-badge" id="score-drag-${player.id}" data-id="${player.id}"
                  style="left: ${player.posX !== undefined ? player.posX : 50}%; top: ${player.posY !== undefined ? player.posY : 50}%;"
                  title="Click to +1 | Drag to reposition anywhere on card">
-              <div class="drag-grip-indicator">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                  <circle cx="9" cy="5" r="2"></circle><circle cx="15" cy="5" r="2"></circle>
-                  <circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle>
-                  <circle cx="9" cy="19" r="2"></circle><circle cx="15" cy="19" r="2"></circle>
-                </svg>
-                <span>DRAG TO MOVE</span>
-              </div>
               <div class="score-number" id="score-text-${player.id}">${player.score}</div>
             </div>
           </div>
