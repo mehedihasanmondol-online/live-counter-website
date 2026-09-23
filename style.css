@@ -1518,32 +1518,37 @@ body.stream-mode .penalty-floating-btn {
 .shooter-pill {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px 4px 5px;
+  gap: 10px;
+  padding: 6px 14px 6px 6px;
   background: rgba(255, 255, 255, 0.06);
-  border: 1.5px solid transparent;
-  border-radius: 20px;
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all var(--transition-normal);
   color: var(--text-main);
+  position: relative;
 }
 
 .shooter-pill:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .shooter-pill.active {
-  background: rgba(0, 240, 255, 0.15);
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.22) 0%, rgba(5, 255, 161, 0.15) 100%);
   border-color: var(--shooter-color, var(--accent-cyan));
-  box-shadow: 0 0 14px rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4), inset 0 0 10px rgba(0, 240, 255, 0.2);
+  transform: translateY(-1px) scale(1.03);
 }
 
 .shooter-avatar {
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--shooter-color, #ffffff);
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
 }
 
 .shooter-info {
@@ -1553,15 +1558,33 @@ body.stream-mode .penalty-floating-btn {
 }
 
 .shooter-name {
-  font-size: 0.76rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 800;
   line-height: 1.1;
+  color: #ffffff;
 }
 
 .shooter-score {
-  font-size: 0.65rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--accent-cyan);
+}
+
+.shooter-pill.active::after {
+  content: 'KICKER';
+  position: absolute;
+  top: -8px;
+  right: 12px;
+  background: var(--accent-cyan);
+  color: #080a10;
+  font-family: var(--font-display);
+  font-size: 0.55rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 8px var(--accent-cyan);
 }
 
 .auto-alt-toggle {
@@ -1664,75 +1687,30 @@ body.stream-mode .penalty-floating-btn {
   cursor: crosshair;
 }
 
-/* Current Shooter Badge inside Field */
-.penalty-current-shooter-badge {
-  position: absolute;
-  top: 16px;
-  left: 18px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(10, 14, 26, 0.85);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  padding: 6px 14px 6px 8px;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  color: var(--text-main);
-  backdrop-filter: blur(10px);
-  pointer-events: none;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-
-.penalty-current-shooter-badge .badge-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1.5px solid var(--accent-cyan);
-}
-
-.penalty-current-shooter-badge strong {
-  color: var(--accent-cyan);
-}
-
-/* Gesture Guide Pill */
-.penalty-control-hint {
-  position: absolute;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(8, 12, 22, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 6px 18px;
-  border-radius: 20px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-muted);
-  pointer-events: none;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
-  white-space: nowrap;
-}
-
-/* Dynamic Outcome Banner (GOAL, SAVED, POST, MISSED) */
+/* ==========================================================================
+   Rich Broadcast Outcome Card (GOAL, SAVED, POST, MISSED)
+   ========================================================================== */
 .penalty-outcome-banner {
   position: absolute;
-  top: 36%;
+  top: 40%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0.6);
   opacity: 0;
   pointer-events: none;
-  font-family: var(--font-score);
-  font-size: 3.8rem;
-  letter-spacing: 2px;
   text-align: center;
-  padding: 12px 36px;
-  border-radius: 16px;
+  padding: 20px 40px;
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  z-index: 50;
+  gap: 8px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 55;
+  background: rgba(8, 12, 22, 0.94);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .penalty-outcome-banner.show {
@@ -1740,56 +1718,151 @@ body.stream-mode .penalty-floating-btn {
   opacity: 1;
 }
 
-/* Outcome Types */
-.penalty-outcome-banner.goal {
-  color: #ffffff;
-  background: radial-gradient(circle, rgba(5, 255, 161, 0.3) 0%, rgba(5, 255, 161, 0.08) 80%);
+.outcome-avatar-wrap {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  margin-bottom: 2px;
+}
+
+.outcome-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+.outcome-avatar-ring {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  border-radius: 50%;
   border: 2px solid var(--accent-emerald);
-  box-shadow: 0 0 50px rgba(5, 255, 161, 0.6), inset 0 0 20px rgba(5, 255, 161, 0.4);
-  text-shadow: 0 0 20px rgba(5, 255, 161, 0.8), 0 0 40px rgba(5, 255, 161, 0.5);
-  animation: goalBlast 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+  animation: outcomeRingPulse 1.8s infinite;
 }
 
-@keyframes goalBlast {
-  0% {
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(1.08);
-  }
+@keyframes outcomeRingPulse {
+  0% { transform: scale(0.95); opacity: 1; }
+  100% { transform: scale(1.3); opacity: 0; }
 }
 
-.streak-subtag {
+.outcome-main-title {
+  font-family: var(--font-score);
+  font-size: 3.8rem;
+  letter-spacing: 2px;
+  line-height: 0.95;
+  color: #ffffff;
+}
+
+.outcome-player-credit {
   font-family: var(--font-display);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffffff;
+  text-transform: uppercase;
+}
+
+.outcome-score-update {
+  font-family: var(--font-score);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent-emerald);
+  background: rgba(5, 255, 161, 0.12);
+  border: 1px solid rgba(5, 255, 161, 0.3);
+  padding: 4px 16px;
+  border-radius: 20px;
+}
+
+.outcome-streak-badge {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
   font-weight: 800;
   color: var(--accent-gold);
-  letter-spacing: 1px;
-  margin-top: 4px;
+  letter-spacing: 0.8px;
   text-shadow: 0 0 10px rgba(255, 200, 55, 0.6);
 }
 
-.penalty-outcome-banner.saved {
+/* Outcome Card Themes */
+.penalty-outcome-banner.goal {
+  border-color: var(--accent-emerald);
+  background: radial-gradient(circle at center, rgba(5, 255, 161, 0.28) 0%, rgba(8, 14, 24, 0.96) 80%);
+  box-shadow: 0 0 60px rgba(5, 255, 161, 0.55), inset 0 0 30px rgba(5, 255, 161, 0.2);
+  animation: goalCardPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes goalCardPop {
+  0% { transform: translate(-50%, -50%) scale(0.6); }
+  60% { transform: translate(-50%, -50%) scale(1.08); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+.penalty-outcome-banner.goal .outcome-main-title {
   color: #ffffff;
-  background: radial-gradient(circle, rgba(255, 42, 109, 0.25) 0%, rgba(255, 42, 109, 0.06) 80%);
-  border: 2px solid var(--accent-rose);
-  box-shadow: 0 0 40px rgba(255, 42, 109, 0.5);
-  text-shadow: 0 0 15px rgba(255, 42, 109, 0.7);
+  text-shadow: 0 0 25px rgba(5, 255, 161, 0.9), 0 0 50px rgba(5, 255, 161, 0.6);
+}
+
+.penalty-outcome-banner.goal .outcome-avatar-img {
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 25px rgba(5, 255, 161, 0.8);
+}
+
+.penalty-outcome-banner.saved {
+  border-color: var(--accent-rose);
+  background: radial-gradient(circle at center, rgba(255, 42, 109, 0.25) 0%, rgba(8, 14, 24, 0.96) 80%);
+  box-shadow: 0 0 50px rgba(255, 42, 109, 0.5);
+}
+
+.penalty-outcome-banner.saved .outcome-main-title {
+  color: #ffffff;
+  text-shadow: 0 0 20px rgba(255, 42, 109, 0.8);
+}
+
+.penalty-outcome-banner.saved .outcome-avatar-img {
+  border-color: var(--accent-rose);
+}
+
+.penalty-outcome-banner.saved .outcome-score-update {
+  color: var(--accent-rose);
+  border-color: rgba(255, 42, 109, 0.4);
+  background: rgba(255, 42, 109, 0.12);
 }
 
 .penalty-outcome-banner.post {
+  border-color: var(--accent-gold);
+  background: radial-gradient(circle at center, rgba(255, 200, 55, 0.25) 0%, rgba(8, 14, 24, 0.96) 80%);
+  box-shadow: 0 0 50px rgba(255, 200, 55, 0.5);
+}
+
+.penalty-outcome-banner.post .outcome-main-title {
   color: #ffffff;
-  background: radial-gradient(circle, rgba(255, 200, 55, 0.25) 0%, rgba(255, 200, 55, 0.06) 80%);
-  border: 2px solid var(--accent-gold);
-  box-shadow: 0 0 40px rgba(255, 200, 55, 0.5);
-  text-shadow: 0 0 15px rgba(255, 200, 55, 0.7);
+  text-shadow: 0 0 20px rgba(255, 200, 55, 0.8);
+}
+
+.penalty-outcome-banner.post .outcome-avatar-img {
+  border-color: var(--accent-gold);
+}
+
+.penalty-outcome-banner.post .outcome-score-update {
+  color: var(--accent-gold);
+  border-color: rgba(255, 200, 55, 0.4);
+  background: rgba(255, 200, 55, 0.12);
 }
 
 .penalty-outcome-banner.missed {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(14, 18, 28, 0.95);
+  box-shadow: 0 0 35px rgba(0, 0, 0, 0.8);
+}
+
+.penalty-outcome-banner.missed .outcome-score-update {
   color: var(--text-muted);
-  background: rgba(18, 24, 40, 0.85);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* Responsive Styles for Penalty Arena */

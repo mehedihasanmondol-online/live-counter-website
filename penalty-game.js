@@ -1,6 +1,11 @@
 /**
  * Live Arena Counter - Penalty Shootout Mini-Game
  * Realistic 3D-Perspective Ball Physics, Goalkeeper AI, Net Simulation, Crowd Reactions & Live Score Sync
+ * Features:
+ * - Grandstand Spectator Area covered with Player Images (Messi & Ronaldo Fan Stands)
+ * - Prominent Broadcast TV Kicker Showcase (Who is kicking, charging, scored, or missed)
+ * - Physical Kicker Character rendered on the penalty spot with player photo & jersey
+ * - Rich Celebratory Outcome Cards with Player Credit, Score Delta (+1), and Fan Stand Eruptions
  */
 
 (function () {
@@ -30,6 +35,12 @@
       // Sound toggle
       this.soundEnabled = true;
 
+      // Player Image Cache
+      this.playerImages = {}; // id -> HTMLImageElement
+      this.lastScoredPlayerId = null;
+      this.celebrationGlowTimer = 0;
+      this.ledScrollOffset = 0;
+
       // Ball state (Normalized: z = 0 at penalty spot, z = 1 at goal line)
       this.ball = {
         x: 0,         // Horizontal position relative to center
@@ -48,6 +59,13 @@
         dragCurrentX: 0,
         dragCurrentY: 0,
         trail: []     // Particle trail
+      };
+
+      // Kicker Character state on the pitch
+      this.kicker = {
+        legAngle: 0,
+        kickProgress: 0,
+        breathTimer: 0
       };
 
       // Goalkeeper state
@@ -122,11 +140,23 @@
       // Listen for players list updates from main app
       if (window.arenaApp && window.arenaApp.subscribe) {
         window.arenaApp.subscribe(({ players }) => {
+          this.preloadPlayerImages(players);
           this.updateShooterSelector(players);
         });
       }
 
       window.addEventListener('resize', this.handleResize);
+    }
+
+    preloadPlayerImages(players) {
+      if (!players) return;
+      players.forEach(p => {
+        if (!this.playerImages[p.id] || this.playerImages[p.id].src !== p.avatar) {
+          const img = new Image();
+          img.src = p.avatar;
+          this.playerImages[p.id] = img;
+        }
+      });
     }
 
     bindDOMEvents() {
@@ -150,12 +180,11 @@
         });
       }
 
-      // Close on Escape key
+      // Close on Escape key & 'P' toggle
       window.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && this.isOpen) {
           this.closeGame();
         }
-        // 'P' key to toggle penalty shootout
         if ((e.key === 'p' || e.key === 'P') && !e.ctrlKey && !e.altKey) {
           if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
           if (this.isOpen) {
@@ -208,11 +237,13 @@
       this.modalEl.classList.add('show');
       document.body.classList.add('penalty-active');
 
-      // Update active shooter selection
+      const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
+      this.preloadPlayerImages(players);
       this.syncActivePlayer();
       this.handleResize();
       this.resetBall();
       this.resetKeeper();
+      this.setKickerStatus('ready');
 
       // Play start whistle
       if (this.soundEnabled && window.soundEngine && window.soundEngine.playWhistle) {
@@ -242,7 +273,7 @@
     }
 
     /* ==========================================================================
-       Player Selection & Integration
+       Player Selection & Prominent Kicker Showcase
        ========================================================================== */
 
     syncActivePlayer() {
@@ -261,8 +292,9 @@
 
       container.innerHTML = '';
       players.forEach(p => {
+        const isCurrent = p.id === this.activePlayerId;
         const pill = document.createElement('button');
-        pill.className = `shooter-pill ${p.id === this.activePlayerId ? 'active' : ''}`;
+        pill.className = `shooter-pill ${isCurrent ? 'active' : ''}`;
         pill.style.setProperty('--shooter-color', p.color);
         pill.innerHTML = `
           <img src="${p.avatar}" alt="${p.name}" class="shooter-avatar" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'12\\' fill=\\'%23444\\'/></svg>'">
@@ -274,18 +306,78 @@
         pill.addEventListener('click', () => {
           this.activePlayerId = p.id;
           this.updateShooterSelector(players);
+          this.resetBall();
         });
         container.appendChild(pill);
       });
 
-      // Update active shooter display badge
-      const activeP = players.find(p => p.id === this.activePlayerId);
-      const badgeEl = document.getElementById('penalty-current-shooter-badge');
-      if (badgeEl && activeP) {
-        badgeEl.innerHTML = `
-          <img src="${activeP.avatar}" alt="${activeP.name}" class="badge-avatar">
-          <span>Kicking: <strong>${activeP.name}</strong> (${activeP.tag || 'PRO'})</span>
-        `;
+      // Update Big Broadcast TV Kicker Showcase Card
+      const activeP = players.find(p => p.id === this.activePlayerId) || players[0];
+      if (activeP) {
+        const avatarEl = document.getElementById('kicker-avatar-big');
+        const nameEl = document.getElementById('kicker-name-huge');
+        const tagEl = document.getElementById('kicker-tag');
+        const scoreEl = document.getElementById('kicker-score-val');
+        const cardEl = document.getElementById('penalty-broadcast-kicker-card');
+        const numberEl = document.getElementById('kicker-number-badge');
+
+        if (avatarEl) avatarEl.src = activeP.avatar;
+        if (nameEl) {
+          nameEl.innerText = activeP.name.toUpperCase();
+          nameEl.style.textShadow = `0 0 16px ${activeP.color}88`;
+        }
+        if (tagEl) tagEl.innerText = activeP.tag || 'PRO 10';
+        if (scoreEl) scoreEl.innerText = activeP.score;
+        if (cardEl) {
+          cardEl.style.borderColor = `${activeP.color}66`;
+          cardEl.style.boxShadow = `0 12px 35px rgba(0, 0, 0, 0.7), 0 0 25px ${activeP.color}33`;
+        }
+        if (numberEl) {
+          const numMatch = (activeP.tag || '').match(/\d+/);
+          numberEl.innerText = numMatch ? numMatch[0] : (activeP.name.includes('Messi') ? '10' : '7');
+          numberEl.style.background = activeP.color;
+        }
+      }
+    }
+
+    setKickerStatus(state, customMsg = null) {
+      const iconEl = document.getElementById('kicker-status-icon');
+      const msgEl = document.getElementById('kicker-status-msg');
+      const pillEl = document.getElementById('kicker-live-status-pill');
+      if (!msgEl || !iconEl || !pillEl) return;
+
+      const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
+      const activeP = players.find(p => p.id === this.activePlayerId) || { name: 'Player' };
+
+      pillEl.className = 'kicker-live-status-pill';
+
+      if (state === 'ready') {
+        iconEl.innerText = '⚽';
+        msgEl.innerText = customMsg || `READY TO KICK • DRAG OR TAP BALL`;
+      } else if (state === 'aiming') {
+        pillEl.classList.add('aiming');
+        iconEl.innerText = '🎯';
+        msgEl.innerText = customMsg || `AIMING & CHARGING SHOT...`;
+      } else if (state === 'kicked') {
+        pillEl.classList.add('kicked');
+        iconEl.innerText = '⚡';
+        msgEl.innerText = customMsg || `${activeP.name.toUpperCase()} STRUCK THE BALL!`;
+      } else if (state === 'goal') {
+        pillEl.classList.add('goal');
+        iconEl.innerText = '🏆';
+        msgEl.innerText = customMsg || `GOAAAL! SCORED BY ${activeP.name.toUpperCase()} (+1)`;
+      } else if (state === 'saved') {
+        pillEl.classList.add('saved');
+        iconEl.innerText = '🧤';
+        msgEl.innerText = customMsg || `SAVED! ${activeP.name.toUpperCase()} DENIED BY KEEPER`;
+      } else if (state === 'post') {
+        pillEl.classList.add('aiming');
+        iconEl.innerText = '🔔';
+        msgEl.innerText = customMsg || `${activeP.name.toUpperCase()} HIT THE WOODWORK!`;
+      } else if (state === 'missed') {
+        pillEl.classList.add('saved');
+        iconEl.innerText = '❌';
+        msgEl.innerText = customMsg || `${activeP.name.toUpperCase()} MISSED THE TARGET`;
       }
     }
 
@@ -317,11 +409,11 @@
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
       // Calculate goal coordinates based on canvas size
-      const goalWidth = Math.min(this.width * 0.62, 540);
+      const goalWidth = Math.min(this.width * 0.58, 520);
       const goalHeight = goalWidth * 0.44;
       const goalLeft = (this.width - goalWidth) / 2;
       const goalRight = goalLeft + goalWidth;
-      const goalBottom = this.height * 0.66;
+      const goalBottom = this.height * 0.65;
       const goalTop = goalBottom - goalHeight;
 
       this.goal = {
@@ -365,7 +457,6 @@
        ========================================================================== */
 
     resetBall() {
-      // Spot ball at screen center bottom
       this.ball.x = this.width / 2;
       this.ball.y = this.height * 0.88;
       this.ball.z = 0;
@@ -379,6 +470,10 @@
       this.ball.isDragging = false;
       this.ball.trail = [];
 
+      this.kicker.legAngle = 0;
+      this.kicker.kickProgress = 0;
+
+      this.setKickerStatus('ready');
       this.hideOutcomeBanner();
     }
 
@@ -425,6 +520,7 @@
         this.ball.dragCurrentX = pos.x;
         this.ball.dragCurrentY = pos.y;
         this.ball.state = 'aiming';
+        this.setKickerStatus('aiming');
         e.preventDefault();
       }
     }
@@ -435,6 +531,11 @@
       const pos = this.getCanvasPointerPos(e);
       this.ball.dragCurrentX = pos.x;
       this.ball.dragCurrentY = pos.y;
+
+      const dy = pos.y - this.ball.dragStartY;
+      const dx = pos.x - this.ball.dragStartX;
+      const dist = Math.hypot(dx, dy);
+      this.kicker.legAngle = Math.min(dist / 60, 1.2);
     }
 
     handlePointerUp(e) {
@@ -443,30 +544,24 @@
       this.ball.isDragging = false;
       const pos = this.getCanvasPointerPos(e);
 
-      // Flick vector: From drag start towards drag release, or inverted pull-back
       let deltaX = pos.x - this.ball.dragStartX;
       let deltaY = pos.y - this.ball.dragStartY;
 
-      // If user pulled backwards like a slingshot, invert direction
       if (deltaY > 20 && Math.abs(deltaY) > Math.abs(deltaX)) {
         deltaX = -deltaX;
         deltaY = -deltaY;
       }
 
-      // Minimum swipe threshold
       const swipeDistance = Math.hypot(deltaX, deltaY);
       if (swipeDistance < 15) {
-        // Tap shoot towards target position
         this.shootTowardsTarget(pos.x, pos.y);
         return;
       }
 
-      // Calculate kick velocity from swipe
       this.launchBall(deltaX, deltaY, swipeDistance);
     }
 
     shootTowardsTarget(targetX, targetY) {
-      // Direct tap kick towards clicked location on goal
       const deltaX = targetX - this.ball.x;
       const deltaY = targetY - this.ball.y;
       const dist = Math.hypot(deltaX, deltaY);
@@ -475,29 +570,23 @@
 
     launchBall(deltaX, deltaY, powerMag) {
       this.ball.state = 'flying';
+      this.setKickerStatus('kicked');
+      this.kicker.kickProgress = 1.0;
 
-      // Normalized power [0.5 to 1.5]
       const clampedPower = Math.min(Math.max(powerMag / 80, 0.6), 1.5);
-
-      // Target projection at goal line (z = 1)
       const aimFactor = 2.4 * clampedPower;
       const targetScreenX = this.ball.x + deltaX * aimFactor;
       const targetScreenY = this.ball.y + deltaY * aimFactor;
 
-      // Velocity in 3D perspective space
-      this.ball.vz = 0.024 * (0.8 + clampedPower * 0.4); // Travel time approx 40-50 frames
+      this.ball.vz = 0.024 * (0.8 + clampedPower * 0.4);
       this.ball.vx = (targetScreenX - this.ball.x) * this.ball.vz;
       this.ball.vy = (targetScreenY - this.ball.y) * this.ball.vz;
-
-      // Curve spin based on horizontal sweep angle
       this.ball.spin = (deltaX / 120) * 0.8;
 
-      // Sound
       if (this.soundEnabled && window.soundEngine && window.soundEngine.playKick) {
         window.soundEngine.playKick(clampedPower);
       }
 
-      // Trigger Goalkeeper Reaction
       this.triggerKeeperDive(targetScreenX, targetScreenY, clampedPower);
     }
 
@@ -506,26 +595,21 @@
        ========================================================================== */
 
     triggerKeeperDive(targetX, targetY, power) {
-      // Reaction delay before keeper commits to dive
       const reactionDelay = 80 + Math.random() * 80;
 
       setTimeout(() => {
         if (this.ball.state !== 'flying') return;
 
-        // Goalkeeper AI prediction accuracy:
-        // ~65% chance keeper reads the correct quadrant
-        const readsCorrect = Math.random() < 0.68;
+        const readsCorrect = Math.random() < 0.66;
         let diveTargetX = targetX;
         let diveTargetY = targetY;
 
         if (!readsCorrect) {
-          // Goalkeeper dives the wrong way or freezes!
           const wrongDirection = targetX > this.width / 2 ? -1 : 1;
           diveTargetX = this.width / 2 + wrongDirection * (this.goal.width * 0.35);
           diveTargetY = this.goal.bottom - Math.random() * this.goal.height * 0.6;
         }
 
-        // Determine dive quadrant
         const isLeft = diveTargetX < this.width / 2;
         const isHigh = diveTargetY < this.goal.top + this.goal.height * 0.5;
 
@@ -558,32 +642,41 @@
     }
 
     update(dt) {
-      // Update screen shake
+      // Screen shake
       if (this.screenShake > 0) {
         this.screenShake *= 0.88;
         if (this.screenShake < 0.2) this.screenShake = 0;
       }
 
-      // Update Net Springs
+      // Fan stand celebration glow timer
+      if (this.celebrationGlowTimer > 0) {
+        this.celebrationGlowTimer -= dt;
+      }
+
+      // LED Marquee animation
+      this.ledScrollOffset += dt * 38;
+
+      // Kicker breathing
+      this.kicker.breathTimer += dt * 3;
+
+      // Net springs
       this.updateNetMesh();
 
-      // Update Keeper
+      // Keeper
       this.updateKeeper(dt);
 
-      // Update Ball Physics
+      // Ball Physics
       if (this.ball.state === 'flying') {
         this.updateBallFlying(dt);
       } else if (this.ball.state === 'goal') {
-        // Settle in net with gravity
         this.ball.vy += 0.2;
         this.ball.x += this.ball.vx * 0.2;
         this.ball.y += this.ball.vy * 0.2;
         this.ball.y = Math.min(this.ball.y, this.goal.bottom - 10);
       } else if (this.ball.state === 'post' || this.ball.state === 'saved') {
-        // Rebound physics
         this.ball.x += this.ball.vx;
         this.ball.y += this.ball.vy;
-        this.ball.vy += 0.4; // Gravity
+        this.ball.vy += 0.4;
         if (this.ball.y > this.height - 20) {
           this.ball.y = this.height - 20;
           this.ball.vy = -this.ball.vy * 0.45;
@@ -593,17 +686,14 @@
     }
 
     updateBallFlying(dt) {
-      // Magnus effect: spin bends horizontal path
       this.ball.vx += this.ball.spin * 0.35;
       this.ball.x += this.ball.vx;
       this.ball.y += this.ball.vy;
       this.ball.z += this.ball.vz;
 
-      // Slight natural gravity drop as it approaches goal
       this.ball.vy += 0.12 * (this.ball.z * 1.5);
       this.ball.rotation += 0.18 + this.ball.spin * 0.1;
 
-      // Add particle to trail
       if (this.ball.trail.length > 18) this.ball.trail.shift();
       this.ball.trail.push({
         x: this.ball.x,
@@ -613,10 +703,8 @@
         alpha: 0.65
       });
 
-      // Decay trail alpha
       this.ball.trail.forEach(t => t.alpha *= 0.92);
 
-      // Ball reached goal line plane (z >= 1.0)
       if (this.ball.z >= 1.0) {
         this.checkGoalLineCollision();
       }
@@ -633,7 +721,7 @@
       const gb = this.goal.bottom;
       const pr = this.goal.postRadius;
 
-      // 1. Post & Crossbar Collisions (Woodwork)
+      // 1. Post & Crossbar (Woodwork)
       const hitLeftPost = Math.hypot(bx - gl, by - Math.max(gt, Math.min(gb, by))) < (ballRad + pr);
       const hitRightPost = Math.hypot(bx - gr, by - Math.max(gt, Math.min(gb, by))) < (ballRad + pr);
       const hitCrossbar = (bx >= gl - pr && bx <= gr + pr) && Math.abs(by - gt) < (ballRad + pr);
@@ -643,7 +731,7 @@
         return;
       }
 
-      // 2. Off target (Outside posts or over crossbar)
+      // 2. Off target
       const isOutsideLeft = bx < gl - ballRad;
       const isOutsideRight = bx > gr + ballRad;
       const isOverBar = by < gt - ballRad;
@@ -653,12 +741,11 @@
         return;
       }
 
-      // 3. Inside the goal frame! Check Goalkeeper Save Hitbox
+      // 3. Goalkeeper Save Hitbox
       const keeperHit = this.checkKeeperSave(bx, by, ballRad);
       if (keeperHit) {
         this.handleOutcome('saved', bx, by);
       } else {
-        // Goal scored!
         this.handleOutcome('goal', bx, by);
       }
     }
@@ -666,19 +753,13 @@
     checkKeeperSave(bx, by, ballRad) {
       if (this.keeper.state !== 'diving' && this.keeper.state !== 'idle') return false;
 
-      // Goalkeeper reach box centered on keeper's current position and extended hands
       const kx = this.keeper.x;
       const ky = this.keeper.y;
       const reachW = this.keeper.width * 1.35;
       const reachH = this.keeper.height * 1.25;
-
       const dist = Math.hypot(bx - kx, by - ky);
 
-      // Check distance to keeper gloves / body
-      if (dist < (reachW * 0.5 + ballRad)) {
-        return true;
-      }
-      return false;
+      return dist < (reachW * 0.5 + ballRad);
     }
 
     /* ==========================================================================
@@ -688,16 +769,17 @@
     handleOutcome(type, impactX, impactY) {
       if (this.resetTimer) clearTimeout(this.resetTimer);
 
+      const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
+      const activeP = players.find(p => p.id === this.activePlayerId) || players[0];
+
       if (type === 'goal') {
         this.ball.state = 'goal';
         this.ball.vx *= 0.15;
         this.ball.vy *= 0.15;
         this.ball.vz = 0;
 
-        // Deform net at impact point
         this.distortNetMesh(impactX, impactY);
 
-        // Update stats
         this.stats.shots++;
         this.stats.goals++;
         this.stats.streak++;
@@ -705,11 +787,11 @@
           this.stats.bestStreak = this.stats.streak;
         }
 
-        // Screen shake & Keeper beaten state
-        this.screenShake = 16;
+        this.screenShake = 18;
         this.keeper.state = 'beaten';
+        this.lastScoredPlayerId = this.activePlayerId;
+        this.celebrationGlowTimer = 3.2;
 
-        // Play crowd cheer, net sound & fireworks
         if (this.soundEnabled && window.soundEngine) {
           if (window.soundEngine.playNet) window.soundEngine.playNet();
           setTimeout(() => {
@@ -722,17 +804,16 @@
           window.confettiEngine.fireworks();
         }
 
-        // Sync score with active player in main Arena Counter!
+        // Increment active player's score by +1 in the live counter!
         if (this.activePlayerId && window.arenaApp && window.arenaApp.modifyScore) {
           window.arenaApp.modifyScore(this.activePlayerId, 1);
         }
 
-        // Show celebration banner
-        this.showOutcomeBanner('GOAL! ⚽🔥', 'goal');
+        this.setKickerStatus('goal');
+        this.showOutcomeBanner('goal', activeP);
 
       } else if (type === 'saved') {
         this.ball.state = 'saved';
-        // Rebound ball off goalkeeper hands
         this.ball.vx = (Math.random() - 0.5) * 8;
         this.ball.vy = -Math.random() * 6 - 2;
         this.ball.vz = 0;
@@ -751,11 +832,11 @@
           }, 120);
         }
 
-        this.showOutcomeBanner('SAVED BY KEEPER! 🧤⛔', 'saved');
+        this.setKickerStatus('saved');
+        this.showOutcomeBanner('saved', activeP);
 
       } else if (type === 'post') {
         this.ball.state = 'post';
-        // Rebound off metal
         this.ball.vx = -this.ball.vx * 0.75 + (Math.random() - 0.5) * 4;
         this.ball.vy = -Math.abs(this.ball.vy) * 0.75;
         this.ball.vz = 0;
@@ -763,7 +844,6 @@
         this.stats.shots++;
         this.stats.misses++;
         this.stats.streak = 0;
-
         this.screenShake = 12;
 
         if (this.soundEnabled && window.soundEngine) {
@@ -773,7 +853,8 @@
           }, 100);
         }
 
-        this.showOutcomeBanner('HIT THE WOODWORK! 🔔💥', 'post');
+        this.setKickerStatus('post');
+        this.showOutcomeBanner('post', activeP);
 
       } else if (type === 'missed') {
         this.ball.state = 'missed';
@@ -785,36 +866,62 @@
           window.soundEngine.playCrowdGroan();
         }
 
-        this.showOutcomeBanner('OFF TARGET! ❌', 'missed');
+        this.setKickerStatus('missed');
+        this.showOutcomeBanner('missed', activeP);
       }
 
       this.updateStatsUI();
 
-      // Automatically advance turn and reset for next shot after 2.6s
+      // Advance turn & reset after 2.8s
       this.resetTimer = setTimeout(() => {
         this.advanceToNextPlayer();
         this.resetBall();
         this.resetKeeper();
-      }, 2600);
+      }, 2800);
     }
 
-    showOutcomeBanner(text, type) {
+    showOutcomeBanner(type, player) {
       const banner = document.getElementById('penalty-outcome-banner');
-      if (!banner) return;
+      const avatarEl = document.getElementById('outcome-avatar-img');
+      const titleEl = document.getElementById('outcome-main-title');
+      const creditEl = document.getElementById('outcome-player-credit');
+      const scoreEl = document.getElementById('outcome-score-update');
+      const streakEl = document.getElementById('outcome-streak-badge');
 
-      banner.innerText = text;
+      if (!banner || !player) return;
+
       banner.className = `penalty-outcome-banner show ${type}`;
+      if (avatarEl) avatarEl.src = player.avatar;
 
-      // Extra streak subtext
-      if (type === 'goal' && this.stats.streak > 1) {
-        banner.innerHTML = `${text}<span class="streak-subtag">🔥 ${this.stats.streak} IN A ROW!</span>`;
+      if (type === 'goal') {
+        if (titleEl) titleEl.innerText = 'GOAAAL! ⚽🔥';
+        if (creditEl) creditEl.innerText = `SCORED BY: ${player.name.toUpperCase()}`;
+        if (scoreEl) scoreEl.innerText = `ARENA SCORE: ${player.score} (+1)`;
+        if (streakEl) {
+          streakEl.innerText = this.stats.streak > 1 ? `🔥 ${this.stats.streak} IN A ROW!` : '⭐ SPECTACULAR FINISH!';
+        }
+      } else if (type === 'saved') {
+        if (titleEl) titleEl.innerText = 'SAVED BY KEEPER! 🧤⛔';
+        if (creditEl) creditEl.innerText = `DENIED: ${player.name.toUpperCase()}`;
+        if (scoreEl) scoreEl.innerText = `SCORE REMAINS: ${player.score}`;
+        if (streakEl) streakEl.innerText = 'Goalkeeper guessed the corner!';
+      } else if (type === 'post') {
+        if (titleEl) titleEl.innerText = 'HIT THE WOODWORK! 🔔💥';
+        if (creditEl) creditEl.innerText = `${player.name.toUpperCase()} HIT THE POST`;
+        if (scoreEl) scoreEl.innerText = `SCORE REMAINS: ${player.score}`;
+        if (streakEl) streakEl.innerText = 'Agonizingly close to the net!';
+      } else if (type === 'missed') {
+        if (titleEl) titleEl.innerText = 'OFF TARGET! ❌';
+        if (creditEl) creditEl.innerText = `${player.name.toUpperCase()} MISSED`;
+        if (scoreEl) scoreEl.innerText = `SCORE REMAINS: ${player.score}`;
+        if (streakEl) streakEl.innerText = 'Ball flew outside the posts!';
       }
     }
 
     hideOutcomeBanner() {
       const banner = document.getElementById('penalty-outcome-banner');
       if (banner) {
-        banner.classList.remove('show', 'goal', 'saved', 'post', 'missed');
+        banner.className = 'penalty-outcome-banner';
       }
     }
 
@@ -833,6 +940,12 @@
         const acc = this.stats.shots > 0 ? Math.round((this.stats.goals / this.stats.shots) * 100) : 0;
         accEl.innerText = `${acc}%`;
       }
+
+      // Also refresh the big broadcast score
+      const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
+      const activeP = players.find(p => p.id === this.activePlayerId);
+      const kickerScoreEl = document.getElementById('kicker-score-val');
+      if (kickerScoreEl && activeP) kickerScoreEl.innerText = activeP.score;
     }
 
     resetStats() {
@@ -851,20 +964,15 @@
 
       if (this.keeper.state === 'idle') {
         this.keeper.idleTimer += dt * 3.5;
-        // Bouncing on toes
         this.keeper.x = this.width / 2 + Math.sin(this.keeper.idleTimer) * (this.goal.width * 0.08);
         this.keeper.y = targetBaseY + Math.abs(Math.sin(this.keeper.idleTimer * 2)) * 6;
       } else if (this.keeper.state === 'diving') {
-        // Move swiftly towards dive target
         const dx = this.keeper.targetX - this.keeper.x;
         const dy = this.keeper.targetY - this.keeper.y;
-
         this.keeper.x += dx * 0.16;
         this.keeper.y += dy * 0.16;
-
         this.keeper.diveProgress = Math.min(this.keeper.diveProgress + dt * 3.2, 1.0);
       } else if (this.keeper.state === 'celebrating') {
-        // Keeper pumps fist
         this.keeper.y = targetBaseY - Math.abs(Math.sin(Date.now() * 0.008)) * 14;
       }
     }
@@ -874,7 +982,6 @@
        ========================================================================== */
 
     distortNetMesh(impactX, impactY) {
-      // Find closest net nodes and displace them backwards
       const normX = (impactX - this.goal.left) / this.goal.width;
       const normY = (impactY - this.goal.top) / this.goal.height;
 
@@ -895,7 +1002,6 @@
       for (let r = 0; r <= this.netRows; r++) {
         for (let c = 0; c <= this.netCols; c++) {
           const node = this.netNodes[r][c];
-          // Spring back to 0 displacement
           node.dispX *= 0.90;
           node.dispY *= 0.90;
         }
@@ -903,7 +1009,7 @@
     }
 
     /* ==========================================================================
-       Rendering: Stadium, Goal, Net, Keeper, Ball, Effects
+       Rendering: Stadium, Goal, Net, Keeper, Kicker, Ball, Effects
        ========================================================================== */
 
     render() {
@@ -919,10 +1025,10 @@
 
       ctx.clearRect(0, 0, this.width, this.height);
 
-      // 1. Draw Stadium Night Backdrop
+      // 1. Draw Stadium Night Backdrop with Crowd Covered by Player Images
       this.drawStadiumSky(ctx);
 
-      // 2. Draw Pitch & Penalty Box
+      // 2. Draw Pitch & Markings
       this.drawPitch(ctx);
 
       // 3. Draw 3D Net
@@ -931,67 +1037,232 @@
       // 4. Draw Goalkeeper
       this.drawGoalkeeper(ctx);
 
-      // 5. Draw Goal Frame (Posts & Crossbar)
+      // 5. Draw Goal Frame
       this.drawGoalPosts(ctx);
 
-      // 6. Draw Ball Shadow & Ball
+      // 6. Draw Kicker Character (The active player standing on the pitch!)
+      this.drawKicker(ctx);
+
+      // 7. Draw Ball Shadow & Ball
       this.drawBall(ctx);
 
-      // 7. Draw Aiming Reticle / Swipe Guide
+      // 8. Draw Aiming Reticle / Swipe Guide
       this.drawAimingGuide(ctx);
 
       ctx.restore();
     }
 
+    /* ==========================================================================
+       Cover Spectator Stands with Active Kicker's Images (Left & Right)
+       ========================================================================== */
+
     drawStadiumSky(ctx) {
       const w = this.width;
       const h = this.height;
-      const horizon = this.goal.bottom - 40;
+      const horizon = this.goal.bottom - 36;
 
-      // Dark night arena gradient
+      const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
+      // Current active kicker who is shooting right now
+      const activeP = players.find(p => p.id === this.activePlayerId) || players[0] || { id: 'p1', name: 'Shooter', color: '#00f0ff' };
+      const activeImg = this.playerImages[activeP.id];
+      const themeColor = activeP.color || '#00f0ff';
+
+      // 1. Dark night arena gradient sky
       const skyGrad = ctx.createLinearGradient(0, 0, 0, horizon);
-      skyGrad.addColorStop(0, '#04060b');
-      skyGrad.addColorStop(0.5, '#0a0f1d');
-      skyGrad.addColorStop(1, '#111a30');
+      skyGrad.addColorStop(0, '#04060c');
+      skyGrad.addColorStop(0.4, '#090e1a');
+      skyGrad.addColorStop(1, '#0e1628');
       ctx.fillStyle = skyGrad;
       ctx.fillRect(0, 0, w, horizon);
 
-      // Stadium Grandstands Silhouette & Crowd Lights
-      ctx.fillStyle = '#070a14';
-      ctx.fillRect(0, horizon - 90, w, 90);
+      const standTopY = 25;
+      const standHeight = horizon - standTopY - 22;
 
-      // Floodlights Glow Flares
-      this.drawFloodlight(ctx, w * 0.12, horizon - 120);
-      this.drawFloodlight(ctx, w * 0.88, horizon - 120);
-      this.drawFloodlight(ctx, w * 0.35, horizon - 130);
-      this.drawFloodlight(ctx, w * 0.65, horizon - 130);
+      // ==========================================
+      // 2. LEFT GRANDSTAND: Active Kicker's Image
+      // ==========================================
+      const leftStandW = Math.max(120, this.goal.left - 14);
 
-      // Crowd camera flashes / atmospheric dots
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-      for (let i = 0; i < 24; i++) {
-        if (Math.random() > 0.88) {
-          const fx = (i / 24) * w + (Math.random() - 0.5) * 40;
-          const fy = horizon - 75 + Math.random() * 50;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, standTopY, leftStandW, standHeight);
+      ctx.clip();
+
+      if (activeImg && activeImg.complete && activeImg.naturalWidth > 0) {
+        // Draw active kicker image covering left grandstand
+        ctx.drawImage(activeImg, 0, standTopY, leftStandW, standHeight);
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, standTopY, leftStandW, standHeight);
+      }
+
+      // Stadium vignette & team lighting overlay in active kicker's color
+      const leftTint = ctx.createLinearGradient(0, standTopY, leftStandW, standTopY + standHeight);
+      leftTint.addColorStop(0, 'rgba(4, 8, 16, 0.45)');
+      leftTint.addColorStop(0.6, `${themeColor}38`);
+      leftTint.addColorStop(1, 'rgba(4, 6, 12, 0.88)');
+      ctx.fillStyle = leftTint;
+      ctx.fillRect(0, standTopY, leftStandW, standHeight);
+
+      // Celebration Flash if active player scored
+      if (this.lastScoredPlayerId === activeP.id && this.celebrationGlowTimer > 0) {
+        ctx.fillStyle = `${themeColor}88`;
+        ctx.fillRect(0, standTopY, leftStandW, standHeight);
+      }
+
+      // Grandstand Upper Header Sign
+      ctx.fillStyle = 'rgba(8, 14, 28, 0.88)';
+      ctx.fillRect(0, standTopY, leftStandW, 20);
+      ctx.fillStyle = themeColor;
+      ctx.font = 'bold 10px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`🚩 ${activeP.name.toUpperCase()} STAND (NORTH) 🚩`, leftStandW / 2, standTopY + 14);
+
+      // Cheering Crowd silhouettes & flags at railing
+      this.drawCrowdSilhouettes(ctx, 0, standTopY + standHeight - 24, leftStandW, 24, themeColor);
+
+      ctx.restore();
+
+      // ==========================================
+      // 3. RIGHT GRANDSTAND: Active Kicker's Image
+      // ==========================================
+      const rightStandX = this.goal.right + 14;
+      const rightStandW = w - rightStandX;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(rightStandX, standTopY, rightStandW, standHeight);
+      ctx.clip();
+
+      if (activeImg && activeImg.complete && activeImg.naturalWidth > 0) {
+        // Draw active kicker image covering right grandstand
+        ctx.drawImage(activeImg, rightStandX, standTopY, rightStandW, standHeight);
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(rightStandX, standTopY, rightStandW, standHeight);
+      }
+
+      // Stadium vignette & team lighting overlay in active kicker's color
+      const rightTint = ctx.createLinearGradient(rightStandX, standTopY, rightStandX + rightStandW, standTopY + standHeight);
+      rightTint.addColorStop(0, 'rgba(4, 8, 16, 0.45)');
+      rightTint.addColorStop(0.6, `${themeColor}38`);
+      rightTint.addColorStop(1, 'rgba(4, 6, 12, 0.88)');
+      ctx.fillStyle = rightTint;
+      ctx.fillRect(rightStandX, standTopY, rightStandW, standHeight);
+
+      // Celebration Flash if active player scored
+      if (this.lastScoredPlayerId === activeP.id && this.celebrationGlowTimer > 0) {
+        ctx.fillStyle = `${themeColor}88`;
+        ctx.fillRect(rightStandX, standTopY, rightStandW, standHeight);
+      }
+
+      // Grandstand Upper Header Sign
+      ctx.fillStyle = 'rgba(8, 14, 28, 0.88)';
+      ctx.fillRect(rightStandX, standTopY, rightStandW, 20);
+      ctx.fillStyle = themeColor;
+      ctx.font = 'bold 10px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`🚩 ${activeP.name.toUpperCase()} STAND (SOUTH) 🚩`, rightStandX + rightStandW / 2, standTopY + 14);
+
+      // Cheering Crowd silhouettes & flags at railing
+      this.drawCrowdSilhouettes(ctx, rightStandX, standTopY + standHeight - 24, rightStandW, 24, themeColor);
+
+      ctx.restore();
+
+      // ==========================================
+      // 4. CENTER GRANDSTAND: Active Kicker Spotlight Tier
+      // ==========================================
+      const centerStandX = leftStandW;
+      const centerStandW = rightStandX - centerStandX;
+
+      ctx.fillStyle = '#080c16';
+      ctx.fillRect(centerStandX, standTopY, centerStandW, standHeight);
+
+      // Seating tiers
+      for (let row = 0; row < 5; row++) {
+        const ry = standTopY + row * 16;
+        ctx.fillStyle = row % 2 === 0 ? '#111827' : '#0c1220';
+        ctx.fillRect(centerStandX, ry, centerStandW, 15);
+      }
+
+      // ==========================================
+      // 5. Electronic LED Pitchside Ribbon Board (Animated)
+      // ==========================================
+      const ledY = horizon - 22;
+      const ledH = 22;
+
+      ctx.fillStyle = '#060a12';
+      ctx.fillRect(0, ledY, w, ledH);
+      ctx.strokeStyle = `${themeColor}66`;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, ledY, w, ledH);
+
+      // Scrolling LED text ticker focused on the active shooter
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, ledY, w, ledH);
+      ctx.clip();
+
+      ctx.font = 'bold 11px Bebas Neue, Outfit, sans-serif';
+      ctx.fillStyle = themeColor;
+      const tickerText = `⚡ NOW KICKING: ${activeP.name.toUpperCase()} (${activeP.tag || 'PRO'}) ⚡ ARENA SCORE: ${activeP.score} ⚡ SWIPE OR TAP TO SHOOT! ⚡ ⚽ LIVE BROADCAST ⚡`;
+      const textWidth = ctx.measureText(tickerText).width;
+
+      const offset = (this.ledScrollOffset % textWidth);
+      ctx.fillText(tickerText, -offset, ledY + 15);
+      ctx.fillText(tickerText, -offset + textWidth, ledY + 15);
+      ctx.fillText(tickerText, -offset + textWidth * 2, ledY + 15);
+      ctx.restore();
+
+      // ==========================================
+      // 6. Floodlight Towers with Atmosphere Flares
+      // ==========================================
+      this.drawFloodlight(ctx, leftStandW * 0.4, standTopY - 10);
+      this.drawFloodlight(ctx, rightStandX + rightStandW * 0.6, standTopY - 10);
+      this.drawFloodlight(ctx, w * 0.05, standTopY - 10);
+      this.drawFloodlight(ctx, w * 0.95, standTopY - 10);
+    }
+
+    drawCrowdSilhouettes(ctx, x, y, width, height, flagColor) {
+      // Fan silhouettes along railing
+      ctx.fillStyle = '#060912';
+      for (let i = 0; i < width; i += 14) {
+        const headH = 8 + (i % 6);
+        ctx.beginPath();
+        ctx.arc(x + i + 7, y + height - headH, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Waving flags
+        if (i % 28 === 0) {
+          ctx.strokeStyle = flagColor;
+          ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.arc(fx, fy, Math.random() * 2 + 1, 0, Math.PI * 2);
+          ctx.moveTo(x + i + 7, y + height - headH);
+          ctx.lineTo(x + i + 14, y + height - headH - 10);
+          ctx.stroke();
+
+          ctx.fillStyle = flagColor;
+          ctx.beginPath();
+          ctx.moveTo(x + i + 14, y + height - headH - 10);
+          ctx.lineTo(x + i + 24, y + height - headH - 14);
+          ctx.lineTo(x + i + 14, y + height - headH - 4);
+          ctx.closePath();
           ctx.fill();
         }
       }
     }
 
     drawFloodlight(ctx, x, y) {
-      // Light tower fixture
       ctx.fillStyle = '#1e2840';
-      ctx.fillRect(x - 14, y, 28, 14);
+      ctx.fillRect(x - 14, y, 28, 12);
 
-      // Intense atmospheric beam & flare
-      const flare = ctx.createRadialGradient(x, y + 7, 0, x, y + 7, 160);
+      const flare = ctx.createRadialGradient(x, y + 6, 0, x, y + 6, 150);
       flare.addColorStop(0, 'rgba(210, 240, 255, 0.55)');
-      flare.addColorStop(0.2, 'rgba(0, 240, 255, 0.22)');
+      flare.addColorStop(0.2, 'rgba(0, 240, 255, 0.2)');
       flare.addColorStop(1, 'rgba(0, 240, 255, 0)');
       ctx.fillStyle = flare;
       ctx.beginPath();
-      ctx.arc(x, y + 7, 160, 0, Math.PI * 2);
+      ctx.arc(x, y + 6, 150, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -1000,24 +1271,23 @@
       const h = this.height;
       const pitchTop = this.goal.bottom - 20;
 
-      // 3D Perspective Pitch with Lawn Stripes
+      // 3D Perspective Pitch with alternating emerald stripes
       const stripes = 12;
       for (let i = 0; i < stripes; i++) {
         const y1 = pitchTop + (i / stripes) * (h - pitchTop);
         const y2 = pitchTop + ((i + 1) / stripes) * (h - pitchTop);
-
         ctx.fillStyle = i % 2 === 0 ? '#114925' : '#0c3a1c';
         ctx.fillRect(0, y1, w, y2 - y1);
       }
 
-      // Pitch lighting vignette
+      // Vignette
       const pitchGlow = ctx.createRadialGradient(w / 2, pitchTop + 60, 40, w / 2, h * 0.8, w * 0.7);
       pitchGlow.addColorStop(0, 'rgba(0, 255, 140, 0.12)');
       pitchGlow.addColorStop(1, 'rgba(0, 0, 0, 0.5)');
       ctx.fillStyle = pitchGlow;
       ctx.fillRect(0, pitchTop, w, h - pitchTop);
 
-      // Pitch Markings: Goal line, Penalty box, Penalty spot
+      // Pitch Markings
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
       ctx.lineWidth = 3;
 
@@ -1027,7 +1297,7 @@
       ctx.lineTo(this.goal.right + 60, this.goal.bottom);
       ctx.stroke();
 
-      // 6-yard / Goal Area Box in perspective
+      // 6-yard Goal Area Box
       const boxLeft = this.goal.left - 35;
       const boxRight = this.goal.right + 35;
       const boxBottom = this.goal.bottom + (h - this.goal.bottom) * 0.28;
@@ -1039,7 +1309,7 @@
       ctx.lineTo(boxRight, this.goal.bottom);
       ctx.stroke();
 
-      // Penalty Spot (White circle on turf)
+      // Penalty Spot
       const spotX = w / 2;
       const spotY = h * 0.88;
       ctx.fillStyle = '#ffffff';
@@ -1047,7 +1317,7 @@
       ctx.ellipse(spotX, spotY, 6, 3, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Penalty Arc segment at bottom
+      // Penalty Arc
       ctx.beginPath();
       ctx.ellipse(spotX, spotY - 30, 80, 25, 0, 0, Math.PI);
       ctx.stroke();
@@ -1060,13 +1330,11 @@
       const gb = this.goal.bottom;
       const depth = this.goal.depth;
 
-      // Back frame coordinates (further away in depth)
       const bLeft = gl + depth * 0.25;
       const bRight = gr - depth * 0.25;
       const bTop = gt - depth * 0.35;
       const bBottom = gb - depth * 0.1;
 
-      // Draw rear dark net backing
       ctx.fillStyle = 'rgba(6, 12, 22, 0.55)';
       ctx.beginPath();
       ctx.moveTo(bLeft, bTop);
@@ -1076,7 +1344,6 @@
       ctx.closePath();
       ctx.fill();
 
-      // Dynamic Net Mesh Lines
       ctx.strokeStyle = 'rgba(240, 248, 255, 0.35)';
       ctx.lineWidth = 1;
 
@@ -1085,7 +1352,6 @@
         ctx.beginPath();
         for (let c = 0; c <= this.netCols; c++) {
           const node = this.netNodes[r][c];
-          // Interpolate between front frame and back frame
           const frontX = gl + node.originX * (gr - gl);
           const frontY = gt + node.originY * (gb - gt);
           const backX = bLeft + node.originX * (bRight - bLeft);
@@ -1127,16 +1393,13 @@
       const gb = this.goal.bottom;
       const pr = this.goal.postRadius;
 
-      // Realistic Metallic Tubular Shading
+      // Left post
       const postGrad = ctx.createLinearGradient(gl - pr, 0, gl + pr, 0);
       postGrad.addColorStop(0, '#8892a0');
       postGrad.addColorStop(0.3, '#ffffff');
       postGrad.addColorStop(0.7, '#f0f3f8');
       postGrad.addColorStop(1, '#566070');
-
       ctx.fillStyle = postGrad;
-
-      // Left post
       ctx.beginPath();
       ctx.roundRect(gl - pr, gt - pr, pr * 2, (gb - gt) + pr * 2, pr);
       ctx.fill();
@@ -1163,7 +1426,7 @@
       ctx.roundRect(gl - pr, gt - pr, (gr - gl) + pr * 2, pr * 2, pr);
       ctx.fill();
 
-      // Corner Joint highlights
+      // Corner joints
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(gl, gt, pr * 1.15, 0, Math.PI * 2);
@@ -1181,20 +1444,18 @@
       ctx.save();
       ctx.translate(x, y);
 
-      // Keeper shadow on turf
+      // Shadow
       ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
       ctx.beginPath();
       ctx.ellipse(0, h * 0.46, w * 0.65, 8, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // If diving, apply rotation towards dive direction
       if (k.state === 'diving' || k.state === 'saved') {
         const angle = (k.targetX > this.width / 2 ? 1 : -1) * (k.diveProgress * 0.95);
         ctx.rotate(angle);
       }
 
-      // Keeper Body Rendering
-      // Jersey (Fluorescent Yellow-Green / Cyan Goalkeeper Kit)
+      // Keeper Jersey
       const jerseyGrad = ctx.createLinearGradient(-w * 0.35, -h * 0.3, w * 0.35, h * 0.2);
       jerseyGrad.addColorStop(0, '#eaff00');
       jerseyGrad.addColorStop(1, '#00e575');
@@ -1205,8 +1466,8 @@
       ctx.roundRect(-w * 0.32, -h * 0.28, w * 0.64, h * 0.45, 8);
       ctx.fill();
 
-      // Head & Hair
-      ctx.fillStyle = '#f1c27d'; // Skin tone
+      // Head
+      ctx.fillStyle = '#f1c27d';
       ctx.beginPath();
       ctx.arc(0, -h * 0.38, w * 0.22, 0, Math.PI * 2);
       ctx.fill();
@@ -1217,30 +1478,27 @@
       ctx.arc(0, -h * 0.41, w * 0.22, Math.PI, Math.PI * 2);
       ctx.fill();
 
-      // Shorts (Black with neon stripe)
+      // Shorts
       ctx.fillStyle = '#111520';
       ctx.beginPath();
       ctx.roundRect(-w * 0.3, h * 0.16, w * 0.6, h * 0.22, 4);
       ctx.fill();
 
-      // Legs
+      // Legs & Boots
       ctx.fillStyle = '#f1c27d';
       ctx.fillRect(-w * 0.22, h * 0.36, w * 0.18, h * 0.14);
       ctx.fillRect(w * 0.04, h * 0.36, w * 0.18, h * 0.14);
 
-      // Boots
       ctx.fillStyle = '#ff2a6d';
       ctx.fillRect(-w * 0.24, h * 0.46, w * 0.22, 8);
       ctx.fillRect(w * 0.02, h * 0.46, w * 0.22, 8);
 
-      // Arms & Goalkeeper Gloves
-      // Left arm & glove
+      // Gloves
       ctx.fillStyle = jerseyGrad;
       ctx.save();
       const armSpread = k.state === 'diving' ? -0.8 : -0.25;
       ctx.rotate(armSpread);
       ctx.fillRect(-w * 0.55, -h * 0.26, w * 0.22, h * 0.42);
-      // Large Pro Goalkeeper Glove
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#00f0ff';
       ctx.lineWidth = 2;
@@ -1250,8 +1508,6 @@
       ctx.stroke();
       ctx.restore();
 
-      // Right arm & glove
-      ctx.fillStyle = jerseyGrad;
       ctx.save();
       const rArmSpread = k.state === 'diving' ? 0.8 : 0.25;
       ctx.rotate(rArmSpread);
@@ -1268,8 +1524,131 @@
       ctx.restore();
     }
 
+    /* ==========================================================================
+       On-Pitch Physical Kicker (The Active Player Standing Behind the Ball)
+       ========================================================================== */
+
+    drawKicker(ctx) {
+      const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
+      const activeP = players.find(p => p.id === this.activePlayerId) || players[0];
+      if (!activeP) return;
+
+      const img = this.playerImages[activeP.id];
+
+      // Kicker position relative to penalty spot
+      let kx = this.ball.x - 34;
+      let ky = this.height * 0.88 + 4;
+
+      // Animate kicker depending on state
+      if (this.ball.state === 'aiming') {
+        kx -= 14 * this.kicker.legAngle;
+        ky += 4;
+      } else if (this.ball.state === 'flying') {
+        kx += 16;
+        ky -= 2;
+      } else if (this.ball.state === 'goal') {
+        // Jumping celebration
+        ky -= Math.abs(Math.sin(Date.now() * 0.008)) * 14;
+      }
+
+      ctx.save();
+      ctx.translate(kx, ky);
+
+      // Kicker Shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.beginPath();
+      ctx.ellipse(0, 24, 20, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Kicking Legs & Boots
+      ctx.fillStyle = '#0f172a'; // Shorts
+      ctx.fillRect(-12, -2, 24, 14);
+
+      ctx.fillStyle = '#f1c27d'; // Skin legs
+      const backLegPull = this.ball.state === 'aiming' ? -this.kicker.legAngle * 18 : 0;
+      ctx.fillRect(-10 + backLegPull, 10, 8, 14);
+      ctx.fillRect(2, 10, 8, 14);
+
+      // Boots
+      ctx.fillStyle = activeP.color || '#00f0ff';
+      ctx.fillRect(-12 + backLegPull, 22, 11, 6);
+      ctx.fillRect(2, 22, 11, 6);
+
+      // Torso in team jersey
+      ctx.fillStyle = activeP.color || '#00f0ff';
+      ctx.beginPath();
+      ctx.roundRect(-15, -28, 30, 28, 6);
+      ctx.fill();
+
+      // Number on back/chest
+      ctx.fillStyle = '#080c16';
+      ctx.font = 'bold 11px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      const numMatch = (activeP.tag || '').match(/\d+/);
+      const jerseyNum = numMatch ? numMatch[0] : (activeP.name.includes('Messi') ? '10' : '7');
+      ctx.fillText(jerseyNum, 0, -10);
+
+      // Arms
+      ctx.fillStyle = activeP.color || '#00f0ff';
+      ctx.fillRect(-20, -26, 6, 20);
+      ctx.fillRect(14, -26, 6, 20);
+
+      // Player Head: Circular Photo Avatar with glowing border!
+      const headRadius = 18;
+      const headCenterY = -headRadius - 28;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, headCenterY, headRadius, 0, Math.PI * 2);
+      ctx.clip();
+
+      if (img && img.complete && img.naturalWidth > 0) {
+        ctx.drawImage(img, -headRadius, headCenterY - headRadius, headRadius * 2, headRadius * 2);
+      } else {
+        ctx.fillStyle = '#f1c27d';
+        ctx.fillRect(-headRadius, headCenterY - headRadius, headRadius * 2, headRadius * 2);
+      }
+      ctx.restore();
+
+      // Glowing Neon Avatar Ring
+      ctx.strokeStyle = activeP.color || '#00f0ff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, headCenterY, headRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Overhead Floating Name Plate: [ 👑 LIONEL MESSI ]
+      const tagText = `👑 ${activeP.name.toUpperCase()} (KICKING)`;
+      ctx.font = 'bold 10px Outfit, sans-serif';
+      const tagW = ctx.measureText(tagText).width + 16;
+      const tagH = 18;
+      const tagY = headCenterY - headRadius - 20;
+
+      ctx.fillStyle = 'rgba(8, 14, 28, 0.9)';
+      ctx.strokeStyle = activeP.color || '#00f0ff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-tagW / 2, tagY, tagW, tagH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(tagText, 0, tagY + 13);
+
+      // Small pointer arrow pointing down to kicker's head
+      ctx.fillStyle = activeP.color || '#00f0ff';
+      ctx.beginPath();
+      ctx.moveTo(-4, tagY + tagH);
+      ctx.lineTo(4, tagY + tagH);
+      ctx.lineTo(0, tagY + tagH + 4);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+
     getCurrentBallRadius() {
-      // Perspective scale: Ball shrinks as z approaches 1.0 (goal line)
       const scale = 1.0 - (this.ball.z * 0.62);
       return Math.max(8, this.ball.radius * scale);
     }
@@ -1278,7 +1657,7 @@
       const b = this.ball;
       const currentRadius = this.getCurrentBallRadius();
 
-      // 1. Draw Ball Trail while flying
+      // 1. Trail
       if (b.trail.length > 1) {
         for (let i = 0; i < b.trail.length; i++) {
           const t = b.trail[i];
@@ -1289,7 +1668,7 @@
         }
       }
 
-      // 2. Ball Shadow on Pitch (scales and fades with elevation)
+      // 2. Ball Shadow
       const pitchGroundY = this.height * 0.88 - (b.z * (this.height * 0.88 - this.goal.bottom));
       const shadowY = Math.max(b.y, pitchGroundY);
       const elevation = Math.max(0, shadowY - b.y);
@@ -1300,12 +1679,11 @@
       ctx.ellipse(b.x, shadowY, currentRadius * 1.15 * shadowScale, currentRadius * 0.4 * shadowScale, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // 3. Realistic Soccer Ball Rendering
+      // 3. Soccer Ball Rendering
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(b.rotation);
 
-      // Ball base sphere
       const sphereGrad = ctx.createRadialGradient(
         -currentRadius * 0.35, -currentRadius * 0.35, currentRadius * 0.1,
         0, 0, currentRadius
@@ -1319,14 +1697,11 @@
       ctx.arc(0, 0, currentRadius, 0, Math.PI * 2);
       ctx.fill();
 
-      // Pentagonal/Hexagonal Panels (Classic Match Ball Pattern)
+      // Pentagonal/Hexagonal Panels
       ctx.fillStyle = '#161922';
       const pSize = currentRadius * 0.36;
-
-      // Center Pentagon
       this.drawPolygon(ctx, 0, 0, 5, pSize);
 
-      // Perimeter surrounding panels
       for (let i = 0; i < 5; i++) {
         const ang = (i * Math.PI * 2) / 5 - Math.PI / 2;
         const px = Math.cos(ang) * (currentRadius * 0.72);
@@ -1334,7 +1709,6 @@
         this.drawPolygon(ctx, px, py, 6, pSize * 0.65);
       }
 
-      // Ball Outer Glow Highlight
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -1365,11 +1739,9 @@
       const curX = this.ball.dragCurrentX;
       const curY = this.ball.dragCurrentY;
 
-      // Calculate aiming trajectory in opposite/target direction
       let dx = curX - this.ball.dragStartX;
       let dy = curY - this.ball.dragStartY;
 
-      // If user pulls back, trajectory points forward
       if (dy > 0) {
         dx = -dx;
         dy = -dy;
@@ -1378,12 +1750,10 @@
       const dist = Math.hypot(dx, dy);
       const power = Math.min(dist / 80, 1.5);
 
-      // Projected aim target
       const aimFactor = 2.4 * Math.max(power, 0.6);
       const targetX = bx + dx * aimFactor;
       const targetY = by + dy * aimFactor;
 
-      // Dynamic Trajectory Arc
       ctx.save();
       ctx.setLineDash([8, 8]);
       ctx.strokeStyle = power > 1.2 ? '#ff2a6d' : (power > 0.8 ? '#ffc837' : '#00f0ff');
@@ -1399,7 +1769,7 @@
       );
       ctx.stroke();
 
-      // Target Crosshair / Reticle
+      // Target Crosshair
       ctx.setLineDash([]);
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
@@ -1407,7 +1777,6 @@
       ctx.arc(targetX, targetY, 14, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Crosshair center dot
       ctx.fillStyle = '#00f0ff';
       ctx.beginPath();
       ctx.arc(targetX, targetY, 4, 0, Math.PI * 2);
