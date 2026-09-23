@@ -1396,8 +1396,444 @@ body.stream-mode .exit-stream-btn {
 }
 
 /* Hide launcher when stream mode is active */
-body.stream-mode .penalty-floating-btn {
+body.stream-mode .penalty-floating-btn,
+body.stream-mode .random-goal-floating-btn {
   display: none !important;
+}
+
+/* ==========================================================================
+   Random Mystery Goal Floating Button & Shuffle Overlay
+   ========================================================================== */
+
+.random-goal-floating-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 28px;
+  z-index: 850;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px 10px 12px;
+  background: linear-gradient(135deg, rgba(24, 18, 42, 0.94) 0%, rgba(12, 10, 24, 0.96) 100%);
+  border: 1.5px solid rgba(255, 200, 55, 0.45);
+  border-radius: 40px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 22px rgba(255, 200, 55, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  animation: floatBounceAlt 3.4s ease-in-out infinite;
+}
+
+@keyframes floatBounceAlt {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.random-goal-floating-btn:hover {
+  transform: translateY(-4px) scale(1.04);
+  border-color: var(--accent-gold);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 35px rgba(255, 200, 55, 0.55);
+  background: linear-gradient(135deg, rgba(35, 26, 62, 0.96) 0%, rgba(18, 14, 36, 0.98) 100%);
+}
+
+.random-goal-floating-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.random-goal-floating-btn.is-shuffling {
+  border-color: #05ffa1;
+  box-shadow: 0 0 35px rgba(5, 255, 161, 0.6);
+  cursor: wait;
+}
+
+.random-dice-icon-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  background: radial-gradient(circle, rgba(255, 200, 55, 0.3) 0%, rgba(255, 200, 55, 0.05) 70%);
+  border: 1px solid rgba(255, 200, 55, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.random-dice-icon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+.random-goal-floating-btn.is-shuffling .random-dice-icon {
+  animation: diceRollSpin 0.28s linear infinite;
+}
+
+@keyframes diceRollSpin {
+  0% { transform: rotate(0deg) scale(1.1); }
+  50% { transform: rotate(180deg) scale(0.9); }
+  100% { transform: rotate(360deg) scale(1.1); }
+}
+
+.random-pulse-ring {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-gold);
+  opacity: 0.6;
+  animation: pulseExpandAlt 2.2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes pulseExpandAlt {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.random-btn-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.random-title {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 200, 55, 0.5);
+}
+
+.random-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--accent-gold);
+}
+
+/* Card highlight during roulette shuffle */
+.player-card.shuffle-highlight {
+  border-color: var(--accent-gold) !important;
+  box-shadow: 0 0 50px rgba(255, 200, 55, 0.8), inset 0 0 30px rgba(255, 200, 55, 0.3) !important;
+  transform: translateY(-8px) scale(1.025) !important;
+  z-index: 40 !important;
+  transition: all 0.08s ease !important;
+}
+
+/* Card winner celebration flash */
+.player-card.shuffle-winner-pop {
+  animation: cardWinnerBlast 1.2s ease-out;
+}
+
+@keyframes cardWinnerBlast {
+  0% {
+    transform: scale(1.04);
+    box-shadow: 0 0 60px rgba(5, 255, 161, 0.9), inset 0 0 40px rgba(5, 255, 161, 0.4);
+    border-color: #05ffa1;
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 0 35px rgba(5, 255, 161, 0.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ==========================================================================
+   Arena Grid Slot Reel Engine (100% on card grid - No modal!)
+   ========================================================================== */
+
+.card-reel-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Default single photo in track */
+.card-reel-track .reel-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%;
+  filter: brightness(0.78) contrast(1.18) saturate(1.1);
+  display: block;
+}
+
+/* Rolling strip of player avatars inside arena cards */
+.card-reel-track.is-rolling .reel-photo {
+  width: 100%;
+  height: calc(100% / var(--strip-count, 4));
+  flex-shrink: 0;
+  object-fit: cover;
+  object-position: center 20%;
+  display: block;
+}
+
+/* Motion blur & saturation on spinning images */
+.card-reel-track.spin-roll-up .reel-photo,
+.card-reel-track.spin-roll-down .reel-photo {
+  filter: brightness(0.92) contrast(1.25) saturate(1.2) blur(0.6px);
+}
+
+.card-reel-track.spin-brake-up .reel-photo,
+.card-reel-track.spin-brake-down .reel-photo {
+  filter: brightness(0.85) contrast(1.2) saturate(1.15) blur(0.2px);
+  transition: filter 0.5s ease;
+}
+
+/* 1. UPWARDS ROLL: image goes UP and enters from BOTTOM ("uporedike gie nice theke ber hobe") */
+.card-reel-track.spin-roll-up {
+  animation: slotRollUp 0.38s linear infinite;
+}
+
+@keyframes slotRollUp {
+  0% {
+    transform: translate3d(0, 0%, 0);
+  }
+  100% {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+/* 2. DOWNWARDS ROLL: opposite effect, image goes DOWN and enters from TOP ("konota tar oposite effect") */
+.card-reel-track.spin-roll-down {
+  animation: slotRollDown 0.38s linear infinite;
+}
+
+@keyframes slotRollDown {
+  0% {
+    transform: translate3d(0, -50%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0%, 0);
+  }
+}
+
+/* Smooth Deceleration / Braking Animations */
+.card-reel-track.spin-brake-up {
+  animation: slotBrakeUp 0.8s cubic-bezier(0.15, 0.85, 0.25, 1) forwards;
+}
+
+@keyframes slotBrakeUp {
+  0% {
+    transform: translate3d(0, 0%, 0);
+  }
+  100% {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+.card-reel-track.spin-brake-down {
+  animation: slotBrakeDown 0.8s cubic-bezier(0.15, 0.85, 0.25, 1) forwards;
+}
+
+@keyframes slotBrakeDown {
+  0% {
+    transform: translate3d(0, -50%, 0);
+  }
+  100% {
+    transform: translate3d(0, 0%, 0);
+  }
+}
+
+/* Card Spinning State Glow */
+.player-card.card-slot-spinning {
+  box-shadow: 
+    0 15px 45px rgba(0, 0, 0, 0.85),
+    0 0 35px rgba(var(--player-color-rgb, 0, 240, 255), 0.45) !important;
+  border-color: rgba(var(--player-color-rgb, 0, 240, 255), 0.75) !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Winner Card Jackpot Aura on Arena Grid */
+.player-card.shuffle-winner-card {
+  border-color: #ffd700 !important;
+  box-shadow: 
+    0 0 40px rgba(255, 215, 0, 0.8),
+    0 0 80px rgba(255, 215, 0, 0.4),
+    inset 0 0 35px rgba(255, 215, 0, 0.3) !important;
+  transform: translateY(-6px) scale(1.025);
+  transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.45s ease;
+  z-index: 40 !important;
+}
+
+/* ==========================================================================
+   Winning Player Counter Number Zoom & Grow Animation
+   "je jiteche tar counter number ta ektu zoom hoe bere abar normal size hobe"
+   ========================================================================== */
+
+.score-number.casino-zoom-grow {
+  display: inline-block;
+  animation: counter-lucky-grow 1.25s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  z-index: 100 !important;
+  will-change: transform, color;
+}
+
+@keyframes counter-lucky-grow {
+  0% {
+    transform: scale(1);
+    color: #ffffff;
+  }
+  32% {
+    transform: scale(1.85);
+    color: #ffe66d;
+    text-shadow: 
+      0 0 40px rgba(255, 215, 0, 1),
+      0 0 85px rgba(255, 200, 0, 0.8),
+      0 20px 60px rgba(0, 0, 0, 0.95);
+  }
+  65% {
+    transform: scale(1.45);
+    color: #ffd700;
+    text-shadow: 
+      0 0 30px rgba(255, 215, 0, 0.8),
+      0 0 60px rgba(255, 200, 0, 0.5);
+  }
+  100% {
+    transform: scale(1);
+    color: #ffffff;
+    text-shadow: 
+      0 0 20px rgba(var(--player-color-rgb, 0, 240, 255), 0.6),
+      0 10px 40px rgba(0, 0, 0, 0.9);
+  }
+}
+
+.score-draggable-badge.casino-badge-pulse {
+  animation: badge-lucky-pulse 1.25s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  z-index: 80 !important;
+}
+
+@keyframes badge-lucky-pulse {
+  0% {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  32% {
+    box-shadow: 
+      0 0 50px rgba(255, 215, 0, 0.9),
+      0 0 100px rgba(255, 215, 0, 0.6),
+      inset 0 0 30px rgba(255, 215, 0, 0.45);
+    border-color: #ffd700;
+    background: rgba(18, 14, 30, 0.96);
+  }
+  100% {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.65), 0 0 25px rgba(var(--player-color-rgb, 0, 240, 255), 0.2);
+    border-color: rgba(255, 255, 255, 0.12);
+    background: rgba(8, 12, 22, 0.55);
+  }
+}
+
+/* ==========================================================================
+   Top Floating Broadcast Toast for Lucky Random Goal (No modal!)
+   ========================================================================== */
+
+.lucky-goal-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-120px) scale(0.9);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 24px 8px 10px;
+  background: rgba(10, 15, 28, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1.5px solid #ffd700;
+  border-radius: 50px;
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.8),
+    0 0 35px rgba(255, 215, 0, 0.4);
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0;
+  transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s ease;
+}
+
+.lucky-goal-toast.show {
+  transform: translateX(-50%) translateY(0) scale(1);
+  opacity: 1;
+}
+
+.lucky-toast-avatar-wrap {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  padding: 2px;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
+  flex-shrink: 0;
+}
+
+.lucky-toast-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  background: #101524;
+}
+
+.lucky-toast-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.lucky-toast-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #ffd700;
+}
+
+.lucky-toast-name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.8px;
+  line-height: 1.15;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+}
+
+.lucky-toast-score-badge {
+  font-family: var(--font-score);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #05ffa1;
+  background: rgba(5, 255, 161, 0.14);
+  border: 1px solid rgba(5, 255, 161, 0.4);
+  padding: 6px 14px;
+  border-radius: 20px;
+  box-shadow: 0 0 15px rgba(5, 255, 161, 0.3);
+  margin-left: 6px;
 }
 
 /* Penalty Shootout Stadium Modal Backdrop */
@@ -1877,15 +2313,23 @@ body.stream-mode .penalty-floating-btn {
     right: 18px;
     padding: 8px 14px 8px 10px;
   }
-  .penalty-ball-icon-wrap {
+  .random-goal-floating-btn {
+    bottom: 18px;
+    left: 18px;
+    padding: 8px 14px 8px 10px;
+  }
+  .penalty-ball-icon-wrap,
+  .random-dice-icon-wrap {
     width: 38px;
     height: 38px;
     font-size: 1.25rem;
   }
-  .penalty-title {
+  .penalty-title,
+  .random-title {
     font-size: 0.8rem;
   }
-  .penalty-subtitle {
+  .penalty-subtitle,
+  .random-subtitle {
     display: none;
   }
   .penalty-modal-dialog {

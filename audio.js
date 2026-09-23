@@ -488,6 +488,143 @@ class SoundEngine {
     noise.start(startTime);
     noise.stop(startTime + duration);
   }
+
+  // Shuffle Tick Sound - crisp percussive mechanical tick for spinning / shuffling
+  playShuffleTick(pitchMultiplier = 1) {
+    if (this.muted) return;
+    this.initAudioContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(520 * pitchMultiplier, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.035);
+
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.045);
+
+      this.playNoiseTransient(now, 0.02, 3800, 0.15);
+    } catch (e) {
+      console.warn('Shuffle tick error:', e);
+    }
+  }
+
+  // Shuffle continuous flutter / card-riffle whoosh
+  playShuffleFlutter(duration = 2.4) {
+    if (this.muted) return;
+    this.initAudioContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Filtered fluttering noise
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.45;
+      }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(650, now);
+      filter.frequency.linearRampToValueAtTime(1400, now + duration * 0.55);
+      filter.frequency.exponentialRampToValueAtTime(450, now + duration);
+      filter.Q.setValueAtTime(2.6, now);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.2, now + 0.18);
+      gain.gain.setValueAtTime(0.2, now + duration - 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      noise.start(now);
+      noise.stop(now + duration + 0.05);
+    } catch (e) {
+      console.warn('Shuffle flutter error:', e);
+    }
+  }
+
+  // Casino Slot Reel Mechanical Lock / Stop Clunk
+  playSlotLock() {
+    if (this.muted) return;
+    this.initAudioContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.15);
+
+      this.playNoiseTransient(now, 0.05, 2400, 0.3);
+    } catch (e) {
+      console.warn('Slot lock error:', e);
+    }
+  }
+
+  // Casino Win Bell Chimes (Ascending bells: C6, E6, G6, C7)
+  playCasinoChime() {
+    if (this.muted) return;
+    this.initAudioContext();
+    if (!this.ctx) return;
+
+    try {
+      const notes = [1046.50, 1318.51, 1567.98, 2093.00];
+      const now = this.ctx.currentTime;
+
+      notes.forEach((freq, idx) => {
+        const noteTime = now + idx * 0.08;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, noteTime);
+
+        gain.gain.setValueAtTime(0.001, noteTime);
+        gain.gain.linearRampToValueAtTime(0.28, noteTime + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.38);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(noteTime);
+        osc.stop(noteTime + 0.4);
+      });
+    } catch (e) {
+      console.warn('Casino chime error:', e);
+    }
+  }
 }
 
 window.soundEngine = new SoundEngine();

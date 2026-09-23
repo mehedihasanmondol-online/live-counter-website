@@ -273,12 +273,40 @@
             <span>Penalty Mini-Game</span>
             <span class="key-kbd">P</span>
           </div>
+          <div class="shortcut-item">
+            <span>Random Mystery Goal</span>
+            <span class="key-kbd">G</span>
+          </div>
         </div>
         <div class="modal-actions" style="margin-top: 14px;">
           <button class="modal-btn primary" id="close-shortcuts-btn">Got It!</button>
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Floating Random Mystery Goal Launcher Button -->
+  <button class="random-goal-floating-btn" id="random-goal-btn" title="Random Mystery Goal for a Player">
+    <div class="random-dice-icon-wrap">
+      <span class="random-dice-icon">🎲</span>
+      <span class="random-pulse-ring"></span>
+    </div>
+    <div class="random-btn-text">
+      <span class="random-title">RANDOM GOAL</span>
+      <span class="random-subtitle">LUCKY SHUFFLE • +1 GOAL</span>
+    </div>
+  </button>
+
+  <!-- Top Broadcast Banner for Lucky Random Goal (No modal, 100% on arena grid) -->
+  <div class="lucky-goal-toast" id="lucky-goal-toast">
+    <div class="lucky-toast-avatar-wrap">
+      <img src="assets/messi.jpg" alt="Lucky Winner" class="lucky-toast-avatar" id="lucky-toast-avatar">
+    </div>
+    <div class="lucky-toast-info">
+      <span class="lucky-toast-badge">🎰 LUCKY GOAL WINNER! ⚽</span>
+      <span class="lucky-toast-name" id="lucky-toast-name">LIONEL MESSI</span>
+    </div>
+    <div class="lucky-toast-score-badge">+1 GOAL!</div>
   </div>
 
   <!-- Floating Penalty Shootout Mini-Game Launcher -->

@@ -97,6 +97,15 @@
   const shortcutsModal = document.getElementById('shortcuts-modal');
   const closeShortcutsBtn = document.getElementById('close-shortcuts-btn');
 
+  // Random Mystery Goal Elements & State
+  const randomGoalBtn = document.getElementById('random-goal-btn');
+  const luckyGoalToast = document.getElementById('lucky-goal-toast');
+  const luckyToastAvatar = document.getElementById('lucky-toast-avatar');
+  const luckyToastName = document.getElementById('lucky-toast-name');
+
+  let isRandomShuffling = false;
+  let luckyGoalToastTimer = null;
+
   /* ==========================================================================
      Initialization & Storage
      ========================================================================== */
@@ -215,9 +224,11 @@
       card.style.setProperty('--player-color-rgb', player.colorRgb);
 
       card.innerHTML = `
-        <!-- Full-bleed Player Background Artwork Layer -->
-        <div class="card-bg-layer">
-          <img src="${player.avatar}" alt="${player.name}" class="card-bg-photo" onerror="this.style.display='none'">
+        <!-- Full-bleed Player Background Artwork Layer with Slot Reel Track -->
+        <div class="card-bg-layer" id="card-bg-layer-${player.id}">
+          <div class="card-reel-track" id="card-reel-track-${player.id}">
+            <img src="${player.avatar}" alt="${player.name}" class="card-bg-photo reel-photo" onerror="this.style.display='none'">
+          </div>
           <div class="card-bg-gradient"></div>
           <div class="card-bg-glow"></div>
         </div>
@@ -445,7 +456,7 @@
      Score Modification & Sound / Animation Trigger
      ========================================================================== */
 
-  function modifyScore(playerId, delta, clientX = null, clientY = null) {
+  function modifyScore(playerId, delta, clientX = null, clientY = null, skipArenaRender = false) {
     const player = players.find(p => p.id === playerId);
     if (!player) return;
 
@@ -475,9 +486,11 @@
     const scoreTextEl = document.getElementById(`score-text-${playerId}`);
     if (scoreTextEl) {
       scoreTextEl.innerText = player.score;
-      scoreTextEl.classList.remove('pop-up', 'pop-down');
-      void scoreTextEl.offsetWidth; // Force reflow
-      scoreTextEl.classList.add(delta > 0 ? 'pop-up' : 'pop-down');
+      if (!skipArenaRender) {
+        scoreTextEl.classList.remove('pop-up', 'pop-down');
+        void scoreTextEl.offsetWidth; // Force reflow
+        scoreTextEl.classList.add(delta > 0 ? 'pop-up' : 'pop-down');
+      }
     }
 
     // Spawn floating particle badge
@@ -502,8 +515,10 @@
       if (window.soundEngine) window.soundEngine.playTension();
     }
 
-    // Refresh arena state (leaders, progress bars, tension mode)
-    renderArena();
+    // Refresh arena state (leaders, progress bars, tension mode) unless explicitly skipped
+    if (!skipArenaRender) {
+      renderArena();
+    }
   }
 
   function spawnParticle(playerId, delta, clientX, clientY) {
@@ -548,6 +563,222 @@
     winnerAvatar.src = player.avatar;
     winnerScore.innerText = `FINAL SCORE: ${player.score}`;
     winnerModal.classList.add('show');
+  }
+
+  /* ==========================================================================
+     Random Mystery Goal Arena Slot Reel Engine (No modal - 100% on grid!)
+     ========================================================================== */
+
+  function startRandomGoalShuffle() {
+    if (isRandomShuffling) return;
+    if (!players || players.length === 0) return;
+
+    isRandomShuffling = true;
+
+    if (luckyGoalToastTimer) {
+      clearTimeout(luckyGoalToastTimer);
+      luckyGoalToastTimer = null;
+    }
+    if (luckyGoalToast) luckyGoalToast.classList.remove('show');
+
+    // Button busy state
+    if (randomGoalBtn) {
+      randomGoalBtn.classList.add('is-shuffling');
+      const titleEl = randomGoalBtn.querySelector('.random-title');
+      const subEl = randomGoalBtn.querySelector('.random-subtitle');
+      if (titleEl) titleEl.innerText = 'SHUFFLING...';
+      if (subEl) subEl.innerText = 'SLOT REELS ROLLING';
+    }
+
+    // Determine winning player
+    const winnerIndex = Math.floor(Math.random() * players.length);
+    const winnerPlayer = players[winnerIndex];
+
+    // Play flutter card-riffle background sound
+    if (window.soundEngine && window.soundEngine.playShuffleFlutter) {
+      window.soundEngine.playShuffleFlutter(2.6);
+    }
+
+    // Prepare each card on the arena grid as an alternating slot machine reel!
+    players.forEach((p, idx) => {
+      const cardEl = document.getElementById(`player-card-${p.id}`);
+      const trackEl = document.getElementById(`card-reel-track-${p.id}`);
+
+      if (cardEl) {
+        cardEl.classList.remove('shuffle-winner-card');
+        cardEl.classList.add('card-slot-spinning');
+      }
+
+      if (trackEl) {
+        // Build cycling strip of player avatars
+        const cycleAvatars = [];
+        for (let k = 0; k < players.length; k++) {
+          cycleAvatars.push(players[(k + idx) % players.length].avatar);
+        }
+        // Duplicate cycle twice for seamless infinite loop
+        const stripAvatars = [...cycleAvatars, ...cycleAvatars];
+
+        trackEl.innerHTML = '';
+        stripAvatars.forEach(src => {
+          const img = document.createElement('img');
+          img.src = src;
+          img.className = 'card-bg-photo reel-photo';
+          trackEl.appendChild(img);
+        });
+
+        // Set track height and strip count variable to fit all images (100% of card per image)
+        trackEl.style.setProperty('--strip-count', stripAvatars.length);
+        trackEl.style.height = `${stripAvatars.length * 100}%`;
+        trackEl.className = 'card-reel-track is-rolling';
+
+        // Alternating directions:
+        // Even index (Card 0, 2): Rolls UPWARDS (goes up and comes out from bottom!)
+        // Odd index (Card 1, 3): Rolls DOWNWARDS (opposite effect: goes down and comes out from top!)
+        const isUp = (idx % 2 === 0);
+        trackEl.classList.add(isUp ? 'spin-roll-up' : 'spin-roll-down');
+      }
+    });
+
+    // Schedule realistic mechanical ticks during the spin
+    const tickDelays = [
+      40, 80, 120, 160, 210, 260, 310, 370, 440, 520, 610, 710, 820, 950, 1100,
+      1260, 1440, 1640
+    ];
+
+    tickDelays.forEach((delay, tIdx) => {
+      setTimeout(() => {
+        if (!isRandomShuffling) return;
+        if (window.soundEngine && window.soundEngine.playShuffleTick) {
+          const pitch = 0.9 + (tIdx / tickDelays.length) * 0.7;
+          window.soundEngine.playShuffleTick(pitch);
+        }
+      }, delay);
+    });
+
+    // At 1.65 seconds: Begin smooth braking / deceleration on all reels!
+    setTimeout(() => {
+      players.forEach((p, idx) => {
+        const trackEl = document.getElementById(`card-reel-track-${p.id}`);
+        if (trackEl) {
+          const isUp = (idx % 2 === 0);
+          trackEl.classList.remove('spin-roll-up', 'spin-roll-down');
+          trackEl.classList.add(isUp ? 'spin-brake-up' : 'spin-brake-down');
+        }
+      });
+
+      // Slower braking ticks
+      const brakeTicks = [100, 240, 420, 630];
+      brakeTicks.forEach((bDelay, bIdx) => {
+        setTimeout(() => {
+          if (!isRandomShuffling) return;
+          if (window.soundEngine && window.soundEngine.playShuffleTick) {
+            window.soundEngine.playShuffleTick(1.4 - bIdx * 0.15);
+          }
+        }, bDelay);
+      });
+    }, 1650);
+
+    // At 2.45 seconds: Braking finishes! STOP reels and crown winner!
+    setTimeout(() => {
+      finishShuffle(winnerPlayer);
+    }, 2450);
+  }
+
+  function finishShuffle(winnerPlayer) {
+    // Stop clunk sound
+    if (window.soundEngine && window.soundEngine.playSlotLock) {
+      window.soundEngine.playSlotLock();
+    }
+
+    // Reset all reel tracks back to single default photo
+    players.forEach(p => {
+      const cardEl = document.getElementById(`player-card-${p.id}`);
+      const trackEl = document.getElementById(`card-reel-track-${p.id}`);
+      if (cardEl) {
+        cardEl.classList.remove('card-slot-spinning');
+      }
+      if (trackEl) {
+        trackEl.className = 'card-reel-track';
+        trackEl.style.height = '100%';
+        trackEl.innerHTML = `<img src="${p.avatar}" alt="${p.name}" class="card-bg-photo reel-photo">`;
+      }
+    });
+
+    // Highlight winning player's card with glowing jackpot aura!
+    const winCard = document.getElementById(`player-card-${winnerPlayer.id}`);
+    if (winCard) {
+      winCard.classList.remove('shuffle-winner-card');
+      void winCard.offsetWidth; // force reflow
+      winCard.classList.add('shuffle-winner-card');
+    }
+
+    // Show sleek top broadcast pill (no modal!)
+    if (luckyGoalToast) {
+      if (luckyToastAvatar) luckyToastAvatar.src = winnerPlayer.avatar;
+      if (luckyToastName) luckyToastName.innerText = winnerPlayer.name;
+      luckyGoalToast.classList.add('show');
+
+      luckyGoalToastTimer = setTimeout(() => {
+        luckyGoalToast.classList.remove('show');
+      }, 3200);
+    }
+
+    // --- CRITICAL USER REQUIREMENT: COUNTER NUMBER ZOOM & GROW EFFECT ---
+    // "je jiteche tar counter number ta ektu zoom hoe bere abar normal size hobe."
+    const scoreBadge = document.getElementById(`score-drag-${winnerPlayer.id}`);
+    const scoreText = document.getElementById(`score-text-${winnerPlayer.id}`);
+
+    if (scoreBadge) {
+      scoreBadge.classList.remove('casino-badge-pulse');
+      void scoreBadge.offsetWidth;
+      scoreBadge.classList.add('casino-badge-pulse');
+    }
+
+    if (scoreText) {
+      scoreText.classList.remove('casino-zoom-grow');
+      void scoreText.offsetWidth;
+      scoreText.classList.add('casino-zoom-grow');
+    }
+
+    // At peak zoom (320ms), update score +1 smoothly (skipping immediate arena re-render so zoom finishes smoothly)
+    setTimeout(() => {
+      modifyScore(winnerPlayer.id, 1, null, null, true);
+    }, 320);
+
+    // Audio fanfare & celebratory stadium sounds
+    if (window.soundEngine) {
+      if (window.soundEngine.playCasinoChime) window.soundEngine.playCasinoChime();
+      if (window.soundEngine.playWhistle) window.soundEngine.playWhistle();
+      setTimeout(() => {
+        if (window.soundEngine.playCrowdRoar) window.soundEngine.playCrowdRoar();
+        if (window.soundEngine.playFanfare) window.soundEngine.playFanfare();
+      }, 100);
+    }
+
+    // Confetti cannon blast across the arena!
+    if (window.confettiEngine && window.confettiEngine.fireworks) {
+      window.confettiEngine.fireworks();
+    }
+
+    // Clean up zoom classes, refresh arena state, and restore button state after animation settles
+    setTimeout(() => {
+      if (scoreBadge) scoreBadge.classList.remove('casino-badge-pulse');
+      if (scoreText) scoreText.classList.remove('casino-zoom-grow');
+      if (winCard) winCard.classList.remove('shuffle-winner-card');
+
+      // Now refresh arena state cleanly to reflect any leader changes or target progress
+      renderArena();
+
+      if (randomGoalBtn) {
+        randomGoalBtn.classList.remove('is-shuffling');
+        const titleEl = randomGoalBtn.querySelector('.random-title');
+        const subEl = randomGoalBtn.querySelector('.random-subtitle');
+        if (titleEl) titleEl.innerText = 'RANDOM GOAL';
+        if (subEl) subEl.innerText = 'LUCKY SHUFFLE • +1 GOAL';
+      }
+
+      isRandomShuffling = false;
+    }, 1800);
   }
 
   /* ==========================================================================
@@ -912,6 +1143,11 @@
         reader.readAsDataURL(file);
       }
     });
+
+    // Random Mystery Goal floating button click
+    if (randomGoalBtn) {
+      randomGoalBtn.addEventListener('click', startRandomGoalShuffle);
+    }
   }
 
   /* ==========================================================================
@@ -922,6 +1158,13 @@
     window.addEventListener('keydown', (e) => {
       // Don't trigger hotkeys if user is currently typing in an input field
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        return;
+      }
+
+      // G -> Random Mystery Goal Shuffle
+      if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.altKey) {
+        startRandomGoalShuffle();
+        e.preventDefault();
         return;
       }
 
