@@ -1314,19 +1314,36 @@
 
     updateKeeper(dt) {
       const targetBaseY = this.goal.bottom - this.keeper.height * 0.52;
+      const isShooterAiming = this.ball.state === 'aiming';
 
-      if (this.keeper.state === 'idle') {
-        this.keeper.idleTimer += dt * 3.5;
-        this.keeper.x = this.width / 2 + Math.sin(this.keeper.idleTimer) * (this.goal.width * 0.08);
-        this.keeper.y = targetBaseY + Math.abs(Math.sin(this.keeper.idleTimer * 2)) * 6;
+      if (this.keeper.state === 'idle' || this.keeper.state === 'anticipating') {
+        if (isShooterAiming) {
+          this.keeper.state = 'anticipating';
+          // Tense crouch & subtle lateral shuffle reacting to shooter's aim
+          this.keeper.idleTimer += dt * 6.5;
+          const aimBiasX = (this.ball.dragCurrentX - this.width / 2) * 0.12;
+          const targetX = this.width / 2 + aimBiasX + Math.sin(this.keeper.idleTimer) * (this.goal.width * 0.035);
+          this.keeper.x += (targetX - this.keeper.x) * 0.12;
+          this.keeper.y = targetBaseY + 8 + Math.abs(Math.sin(this.keeper.idleTimer * 2)) * 3;
+        } else {
+          this.keeper.state = 'idle';
+          this.keeper.idleTimer += dt * 4.2;
+          // Athletic keeper bounce and lateral shuffle
+          const targetX = this.width / 2 + Math.sin(this.keeper.idleTimer) * (this.goal.width * 0.07);
+          this.keeper.x += (targetX - this.keeper.x) * 0.1;
+          this.keeper.y = targetBaseY + Math.abs(Math.sin(this.keeper.idleTimer * 2)) * 6;
+        }
       } else if (this.keeper.state === 'diving') {
         const dx = this.keeper.targetX - this.keeper.x;
         const dy = this.keeper.targetY - this.keeper.y;
-        this.keeper.x += dx * 0.16;
-        this.keeper.y += dy * 0.16;
-        this.keeper.diveProgress = Math.min(this.keeper.diveProgress + dt * 3.2, 1.0);
+        this.keeper.x += dx * 0.22;
+        this.keeper.y += dy * 0.22;
+        this.keeper.diveProgress = Math.min(this.keeper.diveProgress + dt * 3.8, 1.0);
       } else if (this.keeper.state === 'celebrating') {
         this.keeper.y = targetBaseY - Math.abs(Math.sin(Date.now() * 0.008)) * 14;
+      } else if (this.keeper.state === 'beaten') {
+        const beatenTargetY = targetBaseY + 10;
+        this.keeper.y += (beatenTargetY - this.keeper.y) * 0.1;
       }
     }
 
@@ -1674,85 +1691,415 @@
       const w = k.width;
       const h = k.height;
 
+      // Goal line on pitch for ground shadow
+      const groundY = this.goal.bottom - 4;
+
+      // 1. Realistic 3D Ground Drop Shadow on the pitch
+      ctx.save();
+      const heightOffGround = Math.max(0, groundY - (y + h * 0.44));
+      const shadowScale = Math.max(0.4, 1 - heightOffGround / 120);
+      const shadowAlpha = Math.max(0.12, 0.55 * (1 - heightOffGround / 160));
+      ctx.fillStyle = `rgba(0, 0, 0, ${shadowAlpha.toFixed(2)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, groundY, w * 0.55 * shadowScale, 9 * shadowScale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+
       ctx.save();
       ctx.translate(x, y);
 
-      // Shadow
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-      ctx.beginPath();
-      ctx.ellipse(0, h * 0.46, w * 0.65, 8, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      if (k.state === 'diving' || k.state === 'saved') {
-        const angle = (k.targetX > this.width / 2 ? 1 : -1) * (k.diveProgress * 0.95);
-        ctx.rotate(angle);
+      // Rotation for diving or saved
+      const isDive = k.state === 'diving' || k.state === 'saved';
+      const isDiveRight = k.targetX > this.width / 2;
+      if (isDive) {
+        const diveAngle = (isDiveRight ? 1 : -1) * (k.diveProgress * 0.95);
+        ctx.rotate(diveAngle);
+      } else if (k.state === 'beaten') {
+        ctx.rotate(0.05);
       }
 
-      // Keeper Jersey
-      const jerseyGrad = ctx.createLinearGradient(-w * 0.35, -h * 0.3, w * 0.35, h * 0.2);
-      jerseyGrad.addColorStop(0, '#eaff00');
-      jerseyGrad.addColorStop(1, '#00e575');
-      ctx.fillStyle = jerseyGrad;
+      // Athletic Crouch & Breathing animation
+      const isCrouching = k.state === 'anticipating';
+      const crouchFactor = isCrouching ? 6 : 0;
+      const breath = Math.sin(k.idleTimer * 2) * 1.5;
 
-      // Torso
+      // Palette: Modern Elite Goalkeeper Kit (Hyper-Volt & Carbon with Metallic Accents)
+      const primaryColor = '#00f576';
+      const secondaryColor = '#00a84e';
+      const darkColor = '#090d16';
+      const trimColor = '#00f0ff';
+      const skinTone = '#e5aa70';
+      const skinShadow = '#c48b52';
+      const tightsColor = '#101726';
+      const bootColor = '#ff2a6d';
+      const gloveLatex = '#ffffff';
+
+      // -------------------------------------------------------------
+      // 2. LEGS, BASE-LAYER COMPRESSION TIGHTS & BOOTS
+      // -------------------------------------------------------------
+      const legSpread = isDive ? 0.35 : (isCrouching ? 0.28 : 0.22);
+      const lLegX = -w * legSpread;
+      const rLegX = w * legSpread;
+      const legW = w * 0.17;
+      const legTopY = h * 0.18 + crouchFactor;
+      const legBottomY = h * 0.44;
+
+      // Compression Tights (Left & Right)
+      ctx.fillStyle = tightsColor;
       ctx.beginPath();
-      ctx.roundRect(-w * 0.32, -h * 0.28, w * 0.64, h * 0.45, 8);
+      ctx.moveTo(lLegX - legW * 0.5, legTopY);
+      ctx.lineTo(lLegX + legW * 0.5, legTopY);
+      ctx.lineTo(lLegX + legW * 0.4, legBottomY);
+      ctx.lineTo(lLegX - legW * 0.4, legBottomY);
+      ctx.closePath();
       ctx.fill();
 
-      // Head
-      ctx.fillStyle = '#f1c27d';
       ctx.beginPath();
-      ctx.arc(0, -h * 0.38, w * 0.22, 0, Math.PI * 2);
+      ctx.moveTo(rLegX - legW * 0.5, legTopY);
+      ctx.lineTo(rLegX + legW * 0.5, legTopY);
+      ctx.lineTo(rLegX + legW * 0.4, legBottomY);
+      ctx.lineTo(rLegX - legW * 0.4, legBottomY);
+      ctx.closePath();
       ctx.fill();
 
-      // Hair
-      ctx.fillStyle = '#221915';
+      // Padded Knee Protectors on Tights
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
       ctx.beginPath();
-      ctx.arc(0, -h * 0.41, w * 0.22, Math.PI, Math.PI * 2);
+      ctx.roundRect(lLegX - legW * 0.35, legTopY + (legBottomY - legTopY) * 0.35, legW * 0.7, 10, 3);
+      ctx.roundRect(rLegX - legW * 0.35, legTopY + (legBottomY - legTopY) * 0.35, legW * 0.7, 10, 3);
       ctx.fill();
 
-      // Shorts
-      ctx.fillStyle = '#111520';
-      ctx.beginPath();
-      ctx.roundRect(-w * 0.3, h * 0.16, w * 0.6, h * 0.22, 4);
-      ctx.fill();
-
-      // Legs & Boots
-      ctx.fillStyle = '#f1c27d';
-      ctx.fillRect(-w * 0.22, h * 0.36, w * 0.18, h * 0.14);
-      ctx.fillRect(w * 0.04, h * 0.36, w * 0.18, h * 0.14);
-
-      ctx.fillStyle = '#ff2a6d';
-      ctx.fillRect(-w * 0.24, h * 0.46, w * 0.22, 8);
-      ctx.fillRect(w * 0.02, h * 0.46, w * 0.22, 8);
-
-      // Gloves
-      ctx.fillStyle = jerseyGrad;
-      ctx.save();
-      const armSpread = k.state === 'diving' ? -0.8 : -0.25;
-      ctx.rotate(armSpread);
-      ctx.fillRect(-w * 0.55, -h * 0.26, w * 0.22, h * 0.42);
+      // Match Socks (Goalkeeper Calf Rings)
+      ctx.fillStyle = secondaryColor;
+      ctx.fillRect(lLegX - legW * 0.38, legBottomY - 14, legW * 0.76, 12);
+      ctx.fillRect(rLegX - legW * 0.38, legBottomY - 14, legW * 0.76, 12);
       ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#00f0ff';
+      ctx.fillRect(lLegX - legW * 0.38, legBottomY - 12, legW * 0.76, 2);
+      ctx.fillRect(rLegX - legW * 0.38, legBottomY - 12, legW * 0.76, 2);
+      ctx.fillRect(lLegX - legW * 0.38, legBottomY - 8, legW * 0.76, 2);
+      ctx.fillRect(rLegX - legW * 0.38, legBottomY - 8, legW * 0.76, 2);
+
+      // Goalkeeper Cleats / Boots (Detailed soccer boots with studs)
+      const bootW = legW * 1.35;
+      const bootH = 9;
+      const lBootGrad = ctx.createLinearGradient(lLegX - bootW * 0.6, legBottomY, lLegX + bootW * 0.6, legBottomY + bootH);
+      lBootGrad.addColorStop(0, bootColor);
+      lBootGrad.addColorStop(1, '#990033');
+      ctx.fillStyle = lBootGrad;
+      ctx.beginPath();
+      ctx.roundRect(lLegX - bootW * 0.65, legBottomY, bootW, bootH, [2, 4, 3, 2]);
+      ctx.fill();
+
+      const rBootGrad = ctx.createLinearGradient(rLegX - bootW * 0.35, legBottomY, rLegX + bootW * 0.65, legBottomY + bootH);
+      rBootGrad.addColorStop(0, bootColor);
+      rBootGrad.addColorStop(1, '#990033');
+      ctx.fillStyle = rBootGrad;
+      ctx.beginPath();
+      ctx.roundRect(rLegX - bootW * 0.35, legBottomY, bootW, bootH, [4, 2, 2, 3]);
+      ctx.fill();
+
+      // Cleat Soles & Studs
+      ctx.fillStyle = '#00f0ff';
+      ctx.fillRect(lLegX - bootW * 0.65, legBottomY + bootH - 2, bootW, 2);
+      ctx.fillRect(rLegX - bootW * 0.35, legBottomY + bootH - 2, bootW, 2);
+      if (isDive || heightOffGround > 8) {
+        ctx.fillStyle = '#ffffff';
+        for (let s = 0; s < 3; s++) {
+          ctx.fillRect(lLegX - bootW * 0.6 + s * 6, legBottomY + bootH, 2.5, 2.5);
+          ctx.fillRect(rLegX - bootW * 0.3 + s * 6, legBottomY + bootH, 2.5, 2.5);
+        }
+      }
+
+      // -------------------------------------------------------------
+      // 3. GOALKEEPER SHORTS
+      // -------------------------------------------------------------
+      const shortsY = h * 0.12 + crouchFactor * 0.5;
+      const shortsH = h * 0.22;
+      const shortsW = w * 0.64;
+
+      const shortsGrad = ctx.createLinearGradient(0, shortsY, 0, shortsY + shortsH);
+      shortsGrad.addColorStop(0, '#101624');
+      shortsGrad.addColorStop(1, '#080c14');
+      ctx.fillStyle = shortsGrad;
+
+      ctx.beginPath();
+      ctx.moveTo(-shortsW * 0.48, shortsY);
+      ctx.lineTo(shortsW * 0.48, shortsY);
+      ctx.lineTo(shortsW * 0.54, shortsY + shortsH);
+      ctx.lineTo(0, shortsY + shortsH * 0.88);
+      ctx.lineTo(-shortsW * 0.54, shortsY + shortsH);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = primaryColor;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.ellipse(-w * 0.46, h * 0.18, 14, 11, -0.2, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(-shortsW * 0.48, shortsY);
+      ctx.lineTo(-shortsW * 0.54, shortsY + shortsH);
+      ctx.moveTo(shortsW * 0.48, shortsY);
+      ctx.lineTo(shortsW * 0.54, shortsY + shortsH);
       ctx.stroke();
-      ctx.restore();
 
-      ctx.save();
-      const rArmSpread = k.state === 'diving' ? 0.8 : 0.25;
-      ctx.rotate(rArmSpread);
-      ctx.fillRect(w * 0.33, -h * 0.26, w * 0.22, h * 0.42);
-      ctx.fillStyle = '#ffffff';
-      ctx.strokeStyle = '#00f0ff';
-      ctx.lineWidth = 2;
+      // -------------------------------------------------------------
+      // 4. GOALKEEPER TORSO & PRO JERSEY
+      // -------------------------------------------------------------
+      const torsoY = -h * 0.26 + crouchFactor * 0.2 + breath;
+      const torsoH = h * 0.42;
+      const torsoTopW = w * 0.72;
+      const torsoWaistW = w * 0.56;
+
+      const jerseyGrad = ctx.createLinearGradient(-torsoTopW * 0.5, torsoY, torsoTopW * 0.5, torsoY + torsoH);
+      jerseyGrad.addColorStop(0, '#22ff88');
+      jerseyGrad.addColorStop(0.3, primaryColor);
+      jerseyGrad.addColorStop(1, secondaryColor);
+      ctx.fillStyle = jerseyGrad;
+
       ctx.beginPath();
-      ctx.ellipse(w * 0.46, h * 0.18, 14, 11, 0.2, 0, Math.PI * 2);
+      ctx.moveTo(-torsoTopW * 0.5, torsoY);
+      ctx.lineTo(torsoTopW * 0.5, torsoY);
+      ctx.lineTo(torsoWaistW * 0.5, torsoY + torsoH);
+      ctx.lineTo(-torsoWaistW * 0.5, torsoY + torsoH);
+      ctx.closePath();
       ctx.fill();
+
+      // Dark Ergonomic Flank Panels
+      ctx.fillStyle = darkColor;
+      ctx.beginPath();
+      ctx.moveTo(-torsoTopW * 0.5, torsoY + torsoH * 0.2);
+      ctx.lineTo(-torsoTopW * 0.38, torsoY + torsoH * 0.2);
+      ctx.lineTo(-torsoWaistW * 0.38, torsoY + torsoH);
+      ctx.lineTo(-torsoWaistW * 0.5, torsoY + torsoH);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(torsoTopW * 0.5, torsoY + torsoH * 0.2);
+      ctx.lineTo(torsoTopW * 0.38, torsoY + torsoH * 0.2);
+      ctx.lineTo(torsoWaistW * 0.38, torsoY + torsoH);
+      ctx.lineTo(torsoWaistW * 0.5, torsoY + torsoH);
+      ctx.closePath();
+      ctx.fill();
+
+      // Sublimated Chevron Stripes
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
+      ctx.lineWidth = 1.5;
+      for (let c = 1; c <= 3; c++) {
+        const cy = torsoY + torsoH * (0.28 + c * 0.16);
+        ctx.beginPath();
+        ctx.moveTo(-torsoWaistW * 0.32, cy - 4);
+        ctx.lineTo(0, cy + 3);
+        ctx.lineTo(torsoWaistW * 0.32, cy - 4);
+        ctx.stroke();
+      }
+
+      // Goalkeeper Crest Badge
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(-torsoTopW * 0.22, torsoY + torsoH * 0.24, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = trimColor;
+      ctx.beginPath();
+      ctx.arc(-torsoTopW * 0.22, torsoY + torsoH * 0.24, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Ribbed V-Neck Collar
+      ctx.fillStyle = darkColor;
+      ctx.beginPath();
+      ctx.moveTo(-torsoTopW * 0.18, torsoY);
+      ctx.lineTo(0, torsoY + 9);
+      ctx.lineTo(torsoTopW * 0.18, torsoY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.restore();
+
+      // -------------------------------------------------------------
+      // 5. HEAD, HAIR & ACTIVE BALL-TRACKING EYES
+      // -------------------------------------------------------------
+      const headY = torsoY - w * 0.28;
+      const headR = w * 0.20;
+
+      // Neck
+      ctx.fillStyle = skinShadow;
+      ctx.fillRect(-headR * 0.45, headY + headR * 0.5, headR * 0.9, headR * 0.7);
+
+      // Head Base
+      const headGrad = ctx.createLinearGradient(-headR, headY - headR, headR, headY + headR);
+      headGrad.addColorStop(0, skinTone);
+      headGrad.addColorStop(1, skinShadow);
+      ctx.fillStyle = headGrad;
+      ctx.beginPath();
+      ctx.ellipse(0, headY, headR * 0.92, headR * 1.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Modern Textured Haircut (High fade sides, textured top)
+      ctx.fillStyle = '#1c1512';
+      ctx.beginPath();
+      ctx.arc(0, headY - headR * 0.25, headR * 0.98, Math.PI * 0.9, Math.PI * 2.1);
+      ctx.lineTo(headR * 0.88, headY - headR * 0.1);
+      ctx.lineTo(0, headY - headR * 0.85);
+      ctx.lineTo(-headR * 0.88, headY - headR * 0.1);
+      ctx.closePath();
+      ctx.fill();
+
+      // Active Ball Tracking Eyes (Pupils dynamically follow ball in real time!)
+      const eyeLevelY = headY + 1;
+      const eyeSpacingX = headR * 0.42;
+
+      const ballRelX = this.ball.x - x;
+      const ballRelY = this.ball.y - (y + headY);
+      const ballDist = Math.hypot(ballRelX, ballRelY) || 1;
+      const pupilShiftX = Math.max(-2.5, Math.min(2.5, (ballRelX / ballDist) * 2.8));
+      const pupilShiftY = Math.max(-1.5, Math.min(1.5, (ballRelY / ballDist) * 2.2));
+
+      // Left Eye
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(-eyeSpacingX, eyeLevelY, 3.8, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#111111';
+      ctx.beginPath();
+      ctx.arc(-eyeSpacingX + pupilShiftX, eyeLevelY + pupilShiftY, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Right Eye
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.ellipse(eyeSpacingX, eyeLevelY, 3.8, 2.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#111111';
+      ctx.beginPath();
+      ctx.arc(eyeSpacingX + pupilShiftX, eyeLevelY + pupilShiftY, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Eyebrows
+      ctx.strokeStyle = '#181210';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-eyeSpacingX - 4, eyeLevelY - 3.5);
+      ctx.lineTo(-eyeSpacingX + 4, eyeLevelY - 2.5);
+      ctx.moveTo(eyeSpacingX + 4, eyeLevelY - 3.5);
+      ctx.lineTo(eyeSpacingX - 4, eyeLevelY - 2.5);
+      ctx.stroke();
+
+      // Nose & Mouth
+      ctx.fillStyle = skinShadow;
+      ctx.fillRect(-1, eyeLevelY + 3.5, 2, 3);
+      if (k.state === 'beaten') {
+        ctx.fillStyle = '#441111';
+        ctx.beginPath();
+        ctx.arc(0, eyeLevelY + 9, 3, 0, Math.PI);
+        ctx.fill();
+      } else {
+        ctx.strokeStyle = skinShadow;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(-3.5, eyeLevelY + 9);
+        ctx.lineTo(3.5, eyeLevelY + 9);
+        ctx.stroke();
+      }
+
+      // -------------------------------------------------------------
+      // 6. ARMS & PRO GOALKEEPER GLOVES
+      // -------------------------------------------------------------
+      const shoulderY = torsoY + 4;
+      const lShoulderX = -torsoTopW * 0.46;
+      const rShoulderX = torsoTopW * 0.46;
+
+      let lArmAngle = -0.35;
+      let rArmAngle = 0.35;
+      let lArmLen = h * 0.36;
+      let rArmLen = h * 0.36;
+
+      if (isDive) {
+        if (isDiveRight) {
+          rArmAngle = -0.95 - (k.diveProgress * 0.5);
+          lArmAngle = 0.2;
+          rArmLen = h * 0.44;
+        } else {
+          lArmAngle = 0.95 + (k.diveProgress * 0.5);
+          rArmAngle = -0.2;
+          lArmLen = h * 0.44;
+        }
+      } else if (k.state === 'anticipating') {
+        lArmAngle = -0.55;
+        rArmAngle = 0.55;
+      } else if (k.state === 'celebrating') {
+        lArmAngle = -2.2;
+        rArmAngle = 2.2;
+      }
+
+      const renderArmAndGlove = (shoulderX, isLeft, armAngle, armLen) => {
+        ctx.save();
+        ctx.translate(shoulderX, shoulderY);
+        ctx.rotate(armAngle);
+
+        const armWidth = w * 0.16;
+
+        // Jersey Sleeve
+        ctx.fillStyle = jerseyGrad;
+        ctx.beginPath();
+        ctx.roundRect(-armWidth * 0.5, 0, armWidth, armLen * 0.72, 4);
+        ctx.fill();
+
+        // Padded Honeycomb Elbow Pad
+        ctx.fillStyle = darkColor;
+        ctx.fillRect(-armWidth * 0.4, armLen * 0.42, armWidth * 0.8, armLen * 0.22);
+        ctx.strokeStyle = primaryColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-armWidth * 0.4, armLen * 0.42, armWidth * 0.8, armLen * 0.22);
+
+        // Forearm / Wrist
+        ctx.fillStyle = skinTone;
+        ctx.fillRect(-armWidth * 0.38, armLen * 0.70, armWidth * 0.76, armLen * 0.22);
+
+        // Neoprene Wrist Bandage
+        const wristY = armLen * 0.90;
+        ctx.fillStyle = '#0e1626';
+        ctx.fillRect(-armWidth * 0.45, wristY, armWidth * 0.9, 7);
+        ctx.fillStyle = trimColor;
+        ctx.fillRect(-armWidth * 0.45, wristY + 2, armWidth * 0.9, 2.5);
+
+        // PRO GOALKEEPER GLOVE HAND
+        const handY = wristY + 7;
+        const gloveW = armWidth * 1.55;
+        const gloveH = armWidth * 1.45;
+
+        // Latex Palm Base
+        ctx.fillStyle = gloveLatex;
+        ctx.beginPath();
+        ctx.roundRect(-gloveW * 0.5, handY, gloveW, gloveH, 6);
+        ctx.fill();
+
+        // Silicone Punch-Zone Knuckles
+        ctx.fillStyle = primaryColor;
+        ctx.fillRect(-gloveW * 0.4, handY + 2, gloveW * 0.8, gloveH * 0.38);
+
+        // Finger Spines
+        ctx.strokeStyle = darkColor;
+        ctx.lineWidth = 1.2;
+        const fingerW = gloveW * 0.2;
+        for (let f = 0; f < 4; f++) {
+          const fx = -gloveW * 0.38 + f * fingerW;
+          ctx.strokeRect(fx, handY + gloveH * 0.4, fingerW, gloveH * 0.55);
+        }
+
+        // Thumb wrap
+        ctx.fillStyle = gloveLatex;
+        const thumbDir = isLeft ? 1 : -1;
+        ctx.beginPath();
+        ctx.ellipse(thumbDir * gloveW * 0.48, handY + gloveH * 0.35, 4.5, 7, thumbDir * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = darkColor;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.restore();
+      };
+
+      renderArmAndGlove(lShoulderX, true, lArmAngle, lArmLen);
+      renderArmAndGlove(rShoulderX, false, rArmAngle, rArmLen);
 
       ctx.restore();
     }
