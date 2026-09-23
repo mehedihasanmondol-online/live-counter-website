@@ -435,6 +435,7 @@ body.stream-mode .app-header:hover {
 
 /* Arena Grid System */
 .arena-grid {
+  position: relative;
   display: grid;
   width: 100%;
   height: 100%;
@@ -1489,8 +1490,8 @@ body.stream-mode .exit-stream-btn {
   }
 }
 
-/* Portrait Mobile Devices (Tall Screen: width <= 768px and orientation: portrait) */
-@media (max-width: 768px) and (orientation: portrait) {
+/* Portrait Mobile Devices (Tall Screen: width <= 768px and orientation: portrait, or narrow screens) */
+@media (max-width: 768px) and (orientation: portrait), (max-width: 768px) and (max-aspect-ratio: 1/1), (max-width: 600px) {
   .app-header {
     height: auto;
     padding: 10px 12px;
@@ -1511,9 +1512,41 @@ body.stream-mode .exit-stream-btn {
   .arena-grid.players-2 {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 1fr;
+    gap: 16px;
   }
   .vs-divider {
-    display: none;
+    display: flex;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: clamp(68px, 18vw, 88px);
+    height: clamp(68px, 18vw, 88px);
+    font-size: clamp(1.95rem, 5.2vw, 2.6rem);
+    letter-spacing: 2px;
+    border-width: 3px;
+    outline-width: 2.5px;
+    outline-offset: 3px;
+    box-shadow: 
+      0 0 45px rgba(0, 0, 0, 0.95),
+      0 0 30px rgba(0, 240, 255, 0.45),
+      0 0 35px rgba(255, 42, 109, 0.4),
+      inset 0 0 18px rgba(0, 0, 0, 0.8),
+      inset 0 0 10px rgba(255, 255, 255, 0.15);
+    z-index: 60;
+    pointer-events: none;
+  }
+}
+
+/* Compact Mobile Landscape VS sizing */
+@media (max-height: 560px) and (orientation: landscape) {
+  .vs-divider {
+    width: clamp(65px, 13vh, 88px);
+    height: clamp(65px, 13vh, 88px);
+    font-size: clamp(1.8rem, 8vh, 2.4rem);
+    border-width: 3px;
+    outline-width: 2px;
+    outline-offset: 2px;
   }
 }
 
