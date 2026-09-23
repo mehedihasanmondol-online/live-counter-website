@@ -46,7 +46,7 @@ class ConfettiEngine {
 
   createParticle(x, y, vx, vy, isStar = false) {
     const color = this.colors[Math.floor(Math.random() * this.colors.length)];
-    const size = isStar ? Math.random() * 8 + 6 : Math.random() * 10 + 6;
+    const size = isStar ? Math.random() * 5 + 3 : Math.random() * 6 + 3;
     return {
       x,
       y,
@@ -56,21 +56,21 @@ class ConfettiEngine {
       color,
       isStar,
       rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.2,
-      wobble: Math.random() * 10,
-      wobbleSpeed: Math.random() * 0.1 + 0.05,
+      rotationSpeed: (Math.random() - 0.5) * 0.15,
+      wobble: Math.random() * 8,
+      wobbleSpeed: Math.random() * 0.08 + 0.04,
       opacity: 1,
-      decay: Math.random() * 0.005 + 0.003
+      decay: Math.random() * 0.012 + 0.008
     };
   }
 
-  burst(originX = window.innerWidth / 2, originY = window.innerHeight / 2, count = 120) {
+  burst(originX = window.innerWidth / 2, originY = window.innerHeight / 2, count = 24) {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const speed = Math.random() * 18 + 6;
+      const speed = Math.random() * 9 + 3;
       const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed - 6; // upward bias
-      const isStar = Math.random() > 0.7;
+      const vy = Math.sin(angle) * speed - 3.5; // slight upward drift
+      const isStar = Math.random() > 0.75;
       this.particles.push(this.createParticle(originX, originY, vx, vy, isStar));
     }
 
@@ -83,18 +83,13 @@ class ConfettiEngine {
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    // Cannon blasts from bottom corners & center
-    this.burst(width * 0.2, height * 0.7, 100);
-    this.burst(width * 0.8, height * 0.7, 100);
+    // Gentle celebration blasts with minimal particle count
+    this.burst(width * 0.35, height * 0.5, 25);
+    this.burst(width * 0.65, height * 0.5, 25);
 
     setTimeout(() => {
-      this.burst(width * 0.5, height * 0.4, 150);
-    }, 250);
-
-    setTimeout(() => {
-      this.burst(width * 0.3, height * 0.5, 90);
-      this.burst(width * 0.7, height * 0.5, 90);
-    }, 600);
+      this.burst(width * 0.5, height * 0.4, 30);
+    }, 200);
   }
 
   drawStar(cx, cy, spikes, outerRadius, innerRadius, color, rotation) {

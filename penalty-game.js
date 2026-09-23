@@ -1083,10 +1083,10 @@
           this.stats.bestStreak = this.stats.streak;
         }
 
-        this.screenShake = 18;
+        this.screenShake = 10;
         this.keeper.state = 'beaten';
         this.lastScoredPlayerId = this.activePlayerId;
-        this.celebrationGlowTimer = 3.2;
+        this.celebrationGlowTimer = 1.5;
 
         if (this.soundEnabled && window.soundEngine) {
           if (window.soundEngine.playNet) window.soundEngine.playNet();
@@ -1096,8 +1096,11 @@
           }, 60);
         }
 
-        if (window.confettiEngine && window.confettiEngine.fireworks) {
-          window.confettiEngine.fireworks();
+        // Minimal, light celebration burst directly over the goal net (reduced particle count)
+        if (window.confettiEngine && window.confettiEngine.burst) {
+          const burstX = this.goal ? (this.goal.left + this.goal.width / 2) : (this.width / 2);
+          const burstY = this.goal ? (this.goal.top + this.goal.height / 2) : (this.height * 0.45);
+          window.confettiEngine.burst(burstX, burstY, 22);
         }
 
         // Increment active player's score by +1 in the live counter!
@@ -1140,7 +1143,7 @@
         this.stats.shots++;
         this.stats.misses++;
         this.stats.streak = 0;
-        this.screenShake = 12;
+        this.screenShake = 8;
 
         if (this.soundEnabled && window.soundEngine) {
           if (window.soundEngine.playWoodwork) window.soundEngine.playWoodwork();
@@ -1168,49 +1171,32 @@
 
       this.updateStatsUI();
 
-      // Advance turn & reset after 2.8s
+      // Advance turn & reset cleanly after 2.0s
       this.resetTimer = setTimeout(() => {
         this.advanceToNextPlayer();
         this.resetBall();
         this.resetKeeper();
-      }, 2800);
+      }, 2000);
     }
 
     showOutcomeBanner(type, player) {
       const banner = document.getElementById('penalty-outcome-banner');
-      const avatarEl = document.getElementById('outcome-avatar-img');
       const titleEl = document.getElementById('outcome-main-title');
       const creditEl = document.getElementById('outcome-player-credit');
-      const scoreEl = document.getElementById('outcome-score-update');
-      const streakEl = document.getElementById('outcome-streak-badge');
 
       if (!banner || !player) return;
 
       banner.className = `penalty-outcome-banner show ${type}`;
-      if (avatarEl) avatarEl.src = player.avatar;
+      if (creditEl) creditEl.innerText = player.name.toUpperCase();
 
       if (type === 'goal') {
-        if (titleEl) titleEl.innerText = 'GOAAAL! ⚽🔥';
-        if (creditEl) creditEl.innerText = `SCORED BY: ${player.name.toUpperCase()}`;
-        if (scoreEl) scoreEl.innerText = `ARENA SCORE: ${player.score} (+1)`;
-        if (streakEl) {
-          streakEl.innerText = this.stats.streak > 1 ? `🔥 ${this.stats.streak} IN A ROW!` : '⭐ SPECTACULAR FINISH!';
-        }
+        if (titleEl) titleEl.innerText = 'GOAL!';
       } else if (type === 'saved') {
-        if (titleEl) titleEl.innerText = 'SAVED BY KEEPER! 🧤⛔';
-        if (creditEl) creditEl.innerText = `DENIED: ${player.name.toUpperCase()}`;
-        if (scoreEl) scoreEl.innerText = `SCORE REMAINS: ${player.score}`;
-        if (streakEl) streakEl.innerText = 'Goalkeeper guessed the corner!';
+        if (titleEl) titleEl.innerText = 'SAVED';
       } else if (type === 'post') {
-        if (titleEl) titleEl.innerText = 'HIT THE WOODWORK! 🔔💥';
-        if (creditEl) creditEl.innerText = `${player.name.toUpperCase()} HIT THE POST`;
-        if (scoreEl) scoreEl.innerText = `SCORE REMAINS: ${player.score}`;
-        if (streakEl) streakEl.innerText = 'Agonizingly close to the net!';
+        if (titleEl) titleEl.innerText = 'POST';
       } else if (type === 'missed') {
-        if (titleEl) titleEl.innerText = 'OFF TARGET! ❌';
-        if (creditEl) creditEl.innerText = `${player.name.toUpperCase()} MISSED`;
-        if (scoreEl) scoreEl.innerText = `SCORE REMAINS: ${player.score}`;
-        if (streakEl) streakEl.innerText = 'Ball flew outside the posts!';
+        if (titleEl) titleEl.innerText = 'MISSED';
       }
     }
 
