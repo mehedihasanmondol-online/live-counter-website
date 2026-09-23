@@ -1177,11 +1177,11 @@
         this.celebrationGlowTimer = 1.5;
 
         if (this.soundEnabled && window.soundEngine) {
-          if (window.soundEngine.playNet) window.soundEngine.playNet();
-          setTimeout(() => {
-            if (window.soundEngine.playCrowdRoar) window.soundEngine.playCrowdRoar();
-            if (window.soundEngine.playWhistle) window.soundEngine.playWhistle();
-          }, 60);
+          if (window.soundEngine.playGoalCelebration) {
+            window.soundEngine.playGoalCelebration();
+          } else if (window.soundEngine.playRandomGoalSound) {
+            window.soundEngine.playRandomGoalSound();
+          }
         }
 
         // Minimal, light celebration burst directly over the goal net (reduced particle count)

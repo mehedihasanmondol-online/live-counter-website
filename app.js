@@ -961,10 +961,14 @@
       modifyScore(winnerPlayer.id, 1, null, null, true);
     }, 320);
 
-    // Subtle celebration chime with dynamic pitch reflecting streak
-    if (window.soundEngine && window.soundEngine.playCasinoChime) {
-      const pitchMult = streak >= 4 ? 1.25 : (streak >= 2 ? 1.12 : 1.0);
-      window.soundEngine.playCasinoChime(pitchMult);
+    // Goal celebration with clapping and announcer shout
+    if (window.soundEngine) {
+      if (window.soundEngine.playGoalCelebration) {
+        window.soundEngine.playGoalCelebration(winnerPlayer.name);
+      } else if (window.soundEngine.playCasinoChime) {
+        const pitchMult = streak >= 4 ? 1.25 : (streak >= 2 ? 1.12 : 1.0);
+        window.soundEngine.playCasinoChime(pitchMult);
+      }
     }
 
     // Clean up zoom classes, refresh arena state, and restore button state after animation settles

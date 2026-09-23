@@ -4,7 +4,7 @@
  * Provides 100% offline access, instant loading, and asset caching
  */
 
-const CACHE_NAME = 'arena-counter-v1.1.4';
+const CACHE_NAME = 'arena-counter-v1.1.7';
 const FONT_CACHE_NAME = 'arena-counter-fonts-v1';
 
 // Essential static resources for offline execution
@@ -28,7 +28,9 @@ const CORE_PRECACHE_URLS = [
   './assets/favicon-32.png',
   './assets/favicon-16.png',
   './assets/messi.jpg',
-  './assets/ronaldo.jpg'
+  './assets/ronaldo.jpg',
+  './assets/Goal sound effect.mp3',
+  './assets/Goal sound effect 2.mp3'
 ];
 
 // Install: Pre-cache static shell & activate immediately

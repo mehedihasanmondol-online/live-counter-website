@@ -23,7 +23,46 @@ class SoundEngine {
     };
     window.addEventListener('click', unlock);
     window.addEventListener('keydown', unlock);
-    window.addEventListener('touchstart', unlock);
+    // Custom Goal Audio Sound Effects (assets/Goal sound effect.mp3 and assets/Goal sound effect 2.mp3)
+    this.goalSoundFiles = [
+      'assets/Goal sound effect.mp3',
+      'assets/Goal sound effect 2.mp3'
+    ];
+    this.goalAudioBuffers = [];
+    this.goalAudioElements = [];
+    this.lastGoalSoundIndex = -1;
+    this.initGoalAudio();
+  }
+
+  initGoalAudio() {
+    try {
+      this.goalAudioElements = this.goalSoundFiles.map((file) => {
+        const audio = new Audio(encodeURI(file));
+        audio.preload = 'auto';
+        return audio;
+      });
+    } catch (e) {
+      console.warn('HTML5 goal audio preload warning:', e);
+    }
+  }
+
+  loadGoalAudioBuffers() {
+    if (!this.ctx) return;
+    this.goalSoundFiles.forEach((file, index) => {
+      if (this.goalAudioBuffers[index]) return;
+      fetch(encodeURI(file))
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.arrayBuffer();
+        })
+        .then(arrayBuf => this.ctx.decodeAudioData(arrayBuf))
+        .then(decodedBuf => {
+          this.goalAudioBuffers[index] = decodedBuf;
+        })
+        .catch(err => {
+          console.warn('Web Audio buffer preload error for', file, err);
+        });
+    });
   }
 
   initAudioContext() {
@@ -36,6 +75,7 @@ class SoundEngine {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    this.loadGoalAudioBuffers();
   }
 
   toggleMute() {
@@ -451,6 +491,191 @@ class SoundEngine {
     } catch (e) {
       console.warn('Audio groan error:', e);
     }
+  }
+
+  // Authentic Stadium Clapping / Applause ("Hattali")
+  playApplause(duration = 3.5) {
+    if (this.muted) return;
+    this.initAudioContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const sampleRate = this.ctx.sampleRate;
+      const bufferSize = Math.floor(sampleRate * duration);
+      const buffer = this.ctx.createBuffer(1, bufferSize, sampleRate);
+      const output = buffer.getChannelData(0);
+
+      // Generate dense realistic stochastic hand-claps
+      const totalClaps = Math.floor(duration * 75); // Over 250 individual claps
+      for (let c = 0; c < totalClaps; c++) {
+        const startTime = Math.random() * (duration - 0.1);
+        const startSample = Math.floor(startTime * sampleRate);
+        const clapDuration = 0.015 + Math.random() * 0.025; // 15-40ms flesh impact
+        const clapSamples = Math.floor(clapDuration * sampleRate);
+        const intensity = 0.35 + Math.random() * 0.65;
+
+        // Swell up fast, sustain enthusiastically, then fade
+        let timeWeight = 1.0;
+        if (startTime < 0.25) {
+          timeWeight = 0.2 + (startTime / 0.25) * 0.8;
+        } else if (startTime > duration - 0.7) {
+          timeWeight = Math.max(0, (duration - startTime) / 0.7);
+        }
+
+        for (let i = 0; i < clapSamples; i++) {
+          const idx = startSample + i;
+          if (idx < bufferSize) {
+            // Sharp transient attack with rapid decay
+            const decay = Math.exp(-i / (clapSamples * 0.28));
+            const whiteNoise = (Math.random() * 2 - 1);
+            output[idx] += whiteNoise * decay * intensity * timeWeight * 0.22;
+          }
+        }
+      }
+
+      // Add soft crowd roar ambience bed to the applause
+      let lastVal = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        lastVal = (lastVal + 0.04 * white) / 1.04;
+        const t = i / sampleRate;
+        const env = t < 0.3 ? (t / 0.3) : (t > duration - 0.6 ? (duration - t) / 0.6 : 1.0);
+        output[i] += lastVal * 0.12 * env;
+      }
+
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+
+      // Bandpass filter centered at 1700Hz with resonance to emulate palm claps
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1700, now);
+      filter.Q.setValueAtTime(1.15, now);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.01, now);
+      gain.gain.linearRampToValueAtTime(0.48, now + 0.2);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      source.start(now);
+      source.stop(now + duration);
+    } catch (e) {
+      console.warn('Audio applause error:', e);
+    }
+  }
+
+  // Voice Announcer - Disabled per user request ("kotha bad dau")
+  shoutGoal() {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+  }
+
+  // Synthesized Goal Fanfare & Horn (Brass/Chamber cheer)
+  playGoalHorns() {
+    if (this.muted) return;
+    this.initAudioContext();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      // Celebratory chord: C5 (523Hz), E5 (659Hz), G5 (784Hz), C6 (1046Hz)
+      const chord = [523.25, 659.25, 783.99, 1046.50];
+      chord.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+
+        // Filter to make it sound like a stadium brass horn
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1800, now);
+        filter.Q.setValueAtTime(2.0, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.07, now + 0.08 + idx * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.6);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now + idx * 0.05);
+        osc.stop(now + 1.7);
+      });
+    } catch (e) {
+      console.warn('Goal horn error:', e);
+    }
+  }
+
+  // Random Goal Sound Effect MP3 ('Goal sound effect.mp3' or 'Goal sound effect 2.mp3')
+  playRandomGoalSound() {
+    if (this.muted) return;
+    this.initAudioContext();
+
+    if (!this.goalSoundFiles || this.goalSoundFiles.length === 0) return;
+
+    // Pick randomly between the two files (alternating to avoid repeating the exact same one back-to-back)
+    let idx = Math.floor(Math.random() * this.goalSoundFiles.length);
+    if (this.goalSoundFiles.length > 1 && idx === this.lastGoalSoundIndex) {
+      idx = (idx + 1) % this.goalSoundFiles.length;
+    }
+    this.lastGoalSoundIndex = idx;
+
+    // 1. Try Web Audio buffer source (instant low-latency playback)
+    if (this.ctx && this.goalAudioBuffers[idx]) {
+      try {
+        const source = this.ctx.createBufferSource();
+        source.buffer = this.goalAudioBuffers[idx];
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+        source.connect(gain);
+        gain.connect(this.ctx.destination);
+        source.start(0);
+        return;
+      } catch (err) {
+        console.warn('Buffer playback error, falling back:', err);
+      }
+    }
+
+    // 2. Fallback to preloaded HTML5 Audio at full volume
+    try {
+      const audio = this.goalAudioElements[idx] || new Audio(encodeURI(this.goalSoundFiles[idx]));
+      audio.currentTime = 0;
+      audio.volume = 1.0;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => console.warn('Goal sound playback error:', err));
+      }
+    } catch (e) {
+      console.warn('Goal sound effect error:', e);
+    }
+  }
+
+  // Pure Goal Celebration: Exclusively plays the user's Goal Sound Effect MP3 randomly (no speech, no synthetic sounds)
+  playGoalCelebration() {
+    if (this.muted) return;
+    this.initAudioContext();
+
+    // Stop any browser speech synthesis if active
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+
+    // Play purely the random goal sound effect MP3 ('Goal sound effect.mp3' or 'Goal sound effect 2.mp3')
+    this.playRandomGoalSound();
+  }
+
+  // Direct alias
+  playGoalSound() {
+    this.playGoalCelebration();
   }
 
   // Noise transient helper
