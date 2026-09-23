@@ -77,6 +77,8 @@
   const shortcutsBtn = document.getElementById('shortcuts-btn');
   const fullscreenBtn = document.getElementById('fullscreen-btn');
   const exitStreamBtn = document.getElementById('exit-stream-btn');
+  const headerMoreBtn = document.getElementById('header-more-btn');
+  const secondaryActionsGroup = document.getElementById('secondary-actions-group');
 
   // Modals
   const winnerModal = document.getElementById('winner-modal');
@@ -177,12 +179,17 @@
     });
 
     if (targetCustomInput) {
-      if (!matchedPreset && targetScore > 0) {
-        targetCustomInput.value = targetScore;
-        targetCustomInput.classList.add('active');
-      } else {
-        targetCustomInput.value = '';
-        targetCustomInput.classList.remove('active');
+      if (document.activeElement !== targetCustomInput) {
+        if (!matchedPreset && targetScore > 0) {
+          targetCustomInput.value = targetScore;
+          targetCustomInput.classList.add('active');
+        } else if (matchedPreset) {
+          targetCustomInput.value = targetScore === 0 ? '∞' : targetScore;
+          targetCustomInput.classList.remove('active');
+        } else {
+          targetCustomInput.value = '';
+          targetCustomInput.classList.remove('active');
+        }
       }
     }
 
@@ -203,14 +210,11 @@
     });
 
     if (initialCustomInput) {
-      if (!matchedInitialPreset) {
-        if (document.activeElement !== initialCustomInput) {
-          initialCustomInput.value = initialScore;
-        }
-        initialCustomInput.classList.add('active');
-      } else {
-        if (document.activeElement !== initialCustomInput) {
-          initialCustomInput.value = '';
+      if (document.activeElement !== initialCustomInput) {
+        initialCustomInput.value = initialScore;
+        if (!matchedInitialPreset) {
+          initialCustomInput.classList.add('active');
+        } else {
           initialCustomInput.classList.remove('active');
         }
       }
@@ -1237,8 +1241,15 @@
       };
 
       targetCustomInput.addEventListener('focus', () => {
+        if (targetCustomInput.value === '∞') targetCustomInput.value = '';
         targetButtons.forEach(b => b.classList.remove('active'));
         targetCustomInput.classList.add('active');
+      });
+
+      targetCustomInput.addEventListener('blur', () => {
+        if (targetCustomInput.value.trim() === '') {
+          syncTargetScoreUI();
+        }
       });
 
       targetCustomInput.addEventListener('input', applyCustomTarget);
@@ -1357,6 +1368,20 @@
     // Shortcuts modal
     shortcutsBtn.addEventListener('click', () => shortcutsModal.classList.add('show'));
     closeShortcutsBtn.addEventListener('click', () => shortcutsModal.classList.remove('show'));
+
+    // Header More Options Popover Menu (Mobile Landscape / Compact)
+    if (headerMoreBtn && secondaryActionsGroup) {
+      headerMoreBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        secondaryActionsGroup.classList.toggle('show');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!secondaryActionsGroup.contains(e.target) && e.target !== headerMoreBtn && !headerMoreBtn.contains(e.target)) {
+          secondaryActionsGroup.classList.remove('show');
+        }
+      });
+    }
 
     // Winner modal buttons
     rematchBtn.addEventListener('click', () => {

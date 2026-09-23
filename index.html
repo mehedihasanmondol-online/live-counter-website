@@ -29,10 +29,12 @@
       <!-- Match Target Score Selector -->
       <div class="control-pill-group" title="Target score to win match">
         <span class="control-label">TARGET:</span>
-        <button class="target-btn" data-target="20" id="target-btn-20">20</button>
-        <button class="target-btn" data-target="50" id="target-btn-50">50</button>
-        <button class="target-btn active" data-target="100" id="target-btn-100">100</button>
-        <button class="target-btn" data-target="0" id="target-btn-endless" title="No target limit">∞</button>
+        <div class="preset-pill-btns">
+          <button class="target-btn" data-target="20" id="target-btn-20">20</button>
+          <button class="target-btn" data-target="50" id="target-btn-50">50</button>
+          <button class="target-btn active" data-target="100" id="target-btn-100">100</button>
+          <button class="target-btn" data-target="0" id="target-btn-endless" title="No target limit">∞</button>
+        </div>
         <div class="target-custom-wrap" title="Enter any custom target score manually">
           <input type="number" id="target-custom-input" class="target-custom-input" min="1" max="99999" placeholder="Custom" />
         </div>
@@ -41,9 +43,11 @@
       <!-- Initial Starting Score Selector (Score starts from here) -->
       <div class="control-pill-group initial-pill-group" title="Initial starting score for all players">
         <span class="control-label">INITIAL:</span>
-        <button class="initial-btn active" data-initial="0" id="initial-btn-0">0</button>
-        <button class="initial-btn" data-initial="10" id="initial-btn-10">10</button>
-        <button class="initial-btn" data-initial="50" id="initial-btn-50">50</button>
+        <div class="preset-pill-btns">
+          <button class="initial-btn active" data-initial="0" id="initial-btn-0">0</button>
+          <button class="initial-btn" data-initial="10" id="initial-btn-10">10</button>
+          <button class="initial-btn" data-initial="50" id="initial-btn-50">50</button>
+        </div>
         <div class="target-custom-wrap" title="Enter custom initial starting score">
           <input type="number" id="initial-custom-input" class="target-custom-input initial-custom-input" min="0" max="99999" placeholder="Custom" />
         </div>
@@ -68,72 +72,84 @@
 
     <!-- Toolbar Actions -->
     <div class="toolbar-actions">
-      <!-- Undo Action -->
-      <button class="action-btn" id="undo-btn" title="Undo Last Score Change (Z / Ctrl+Z)">
+      <!-- Undo Action (Marked Priority) -->
+      <button class="action-btn action-priority-marked" id="undo-btn" title="Undo Last Score Change (Z / Ctrl+Z)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M3 7v6h6"></path>
           <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
         </svg>
-        <span>UNDO</span>
+        <span class="btn-text">UNDO</span>
       </button>
 
-      <!-- Add Player -->
-      <button class="action-btn primary" id="add-player-btn" title="Add another player">
+      <!-- Add Player (Marked Priority) -->
+      <button class="action-btn primary action-priority-marked" id="add-player-btn" title="Add another player">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>
-        <span>ADD PLAYER</span>
+        <span class="btn-text">ADD PLAYER</span>
       </button>
 
       <!-- Reset All Scores -->
-      <button class="action-btn" id="reset-btn" title="Reset all player scores (R)">
+      <button class="action-btn action-priority-marked" id="reset-btn" title="Reset all player scores (R)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M3 2v6h6"></path>
           <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
           <path d="M21 22v-6h-6"></path>
           <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
         </svg>
-        <span>RESET</span>
+        <span class="btn-text">RESET</span>
       </button>
 
-      <!-- Theme / Chroma Picker for OBS -->
-      <select class="action-btn" id="theme-select" title="Background Theme & OBS Chroma Modes" style="background: rgba(255,255,255,0.06); outline: none; border-radius: 10px; cursor: pointer;">
-        <option value="default">🎨 Broadcast Dark</option>
-        <option value="chroma-green">🟩 OBS Green Screen</option>
-        <option value="chroma-blue">🟦 OBS Blue Screen</option>
-        <option value="transparent">🪟 OBS Transparent</option>
-      </select>
-
-      <!-- OBS Stream Overlay Clean Mode -->
-      <button class="action-btn icon-only" id="stream-toggle-btn" title="OBS Clean Stream Overlay Mode (H)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-          <circle cx="12" cy="12" r="3"></circle>
-        </svg>
-      </button>
-
-      <!-- Sound Toggle -->
-      <button class="action-btn icon-only" id="sound-toggle-btn" title="Toggle Sound FX (M)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-        </svg>
-      </button>
-
-      <!-- Fullscreen -->
-      <button class="action-btn icon-only" id="fullscreen-btn" title="Fullscreen (F)">
+      <!-- Fullscreen (Marked Priority) -->
+      <button class="action-btn icon-only action-priority-marked" id="fullscreen-btn" title="Fullscreen (F)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
         </svg>
       </button>
 
-      <!-- Shortcuts / Help -->
-      <button class="action-btn icon-only" id="shortcuts-btn" title="Shortcuts & Gestures Help (?)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+      <!-- Secondary Actions Group (Direct on desktop, popover dropdown on mobile) -->
+      <div class="secondary-actions-group" id="secondary-actions-group">
+        <!-- Theme / Chroma Picker for OBS -->
+        <select class="action-btn secondary-action-item" id="theme-select" title="Background Theme & OBS Chroma Modes" style="background: rgba(255,255,255,0.06); outline: none; border-radius: 10px; cursor: pointer;">
+          <option value="default">🎨 Broadcast Dark</option>
+          <option value="chroma-green">🟩 OBS Green Screen</option>
+          <option value="chroma-blue">🟦 OBS Blue Screen</option>
+          <option value="transparent">🪟 OBS Transparent</option>
+        </select>
+
+        <!-- OBS Stream Overlay Clean Mode -->
+        <button class="action-btn icon-only secondary-action-item" id="stream-toggle-btn" title="OBS Clean Stream Overlay Mode (H)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+
+        <!-- Sound Toggle -->
+        <button class="action-btn icon-only secondary-action-item" id="sound-toggle-btn" title="Toggle Sound FX (M)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </button>
+
+        <!-- Shortcuts / Help -->
+        <button class="action-btn icon-only secondary-action-item" id="shortcuts-btn" title="Shortcuts & Gestures Help (?)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </button>
+      </div>
+
+      <!-- More Menu Toggle Button (Visible on mobile/compact screens) -->
+      <button class="action-btn icon-only header-more-btn" id="header-more-btn" title="More Settings & Options">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="2"></circle>
+          <circle cx="12" cy="12" r="2"></circle>
+          <circle cx="12" cy="19" r="2"></circle>
         </svg>
       </button>
     </div>

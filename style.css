@@ -199,6 +199,12 @@ body.stream-mode .app-header:hover {
   gap: 4px;
 }
 
+.preset-pill-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .control-label {
   font-size: 0.75rem;
   font-weight: 700;
@@ -363,6 +369,17 @@ body.stream-mode .app-header:hover {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
+}
+
+.secondary-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-more-btn {
+  display: none;
 }
 
 .action-btn {
@@ -1285,13 +1302,188 @@ body.stream-mode .exit-stream-btn {
   color: var(--accent-cyan);
 }
 
-/* Responsive adjustments */
-@media (max-width: 900px) {
+/* ==========================================================================
+   Responsive by Importance Layout Engine
+   Optimized for Desktop, Tablet, and Mobile Landscape Orientations
+   ========================================================================== */
+
+/* Keyframe for floating secondary action popover menu */
+@keyframes menuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Medium & Compact Screens, and Mobile Landscape (height <= 560px or width <= 1180px) */
+@media (max-width: 1180px), (orientation: landscape) and (max-height: 560px) {
+  .app-header {
+    height: 54px;
+    min-height: 54px;
+    padding: 0 10px;
+    gap: 8px;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    overflow: visible;
+  }
+
+  /* Compact Brand */
+  .brand-group {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .brand-title {
+    font-size: 0.92rem;
+  }
+  .brand-title span {
+    display: none; /* Hides 'COUNTER', keeps 'ARENA' */
+  }
+
+  /* Match Controls (Target, Initial, Timer) */
+  .match-controls-center {
+    gap: 6px;
+    flex-shrink: 1;
+    justify-content: center;
+  }
+
+  /* HIDE preset pill buttons (20, 50, 100, ∞ and 0, 10, 50) to save 350px+ */
+  .preset-pill-btns {
+    display: none !important;
+  }
+
+  .control-pill-group {
+    padding: 2px 4px;
+    gap: 2px;
+    border-radius: 8px;
+  }
+
+  .control-label {
+    font-size: 0.65rem;
+    padding: 0 4px;
+    letter-spacing: 0.5px;
+  }
+
+  /* Directly display active Target and Initial values */
+  .target-custom-input {
+    width: 60px;
+    padding: 3px 5px;
+    font-size: 0.82rem;
+    border-radius: 6px;
+  }
+
+  /* Stopwatch Timer Widget */
+  .timer-widget {
+    padding: 2px 6px;
+    gap: 6px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .timer-display {
+    font-size: 1.15rem;
+    min-width: 50px;
+    letter-spacing: 1px;
+  }
+
+  .timer-btn {
+    width: 24px;
+    height: 24px;
+  }
+
+  /* Toolbar Actions - Keep user's marked priorities in single line */
+  .toolbar-actions {
+    gap: 6px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .action-btn {
+    padding: 5px 8px;
+    font-size: 0.78rem;
+    gap: 5px;
+    border-radius: 8px;
+    height: 32px;
+  }
+
+  .action-btn.icon-only {
+    width: 32px;
+    height: 32px;
+    padding: 6px;
+  }
+
+  /* Show the More button */
+  .header-more-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Popover Floating Menu for Secondary Actions */
+  .secondary-actions-group {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: linear-gradient(180deg, rgba(14, 20, 36, 0.98) 0%, rgba(8, 12, 22, 0.99) 100%);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(0, 240, 255, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.95), 0 0 25px rgba(0, 240, 255, 0.2);
+    padding: 10px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    min-width: 195px;
+    z-index: 10000;
+  }
+
+  .secondary-actions-group.show {
+    display: flex;
+    animation: menuFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .secondary-actions-group select.action-btn {
+    width: 100%;
+    height: 36px;
+  }
+
+  .secondary-actions-group .secondary-action-item {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 8px 12px;
+    height: 36px;
+  }
+}
+
+/* Extra Compact Screens (< 760px) in Landscape */
+@media (max-width: 760px) {
+  .brand-title {
+    display: none; /* Keeps the glowing [• LIVE] badge */
+  }
+  .action-btn .btn-text {
+    display: none; /* Shows icon only for UNDO, ADD PLAYER, RESET */
+  }
+  .action-btn {
+    padding: 6px;
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+  }
+}
+
+/* Portrait Mobile Devices (Tall Screen: width <= 768px and orientation: portrait) */
+@media (max-width: 768px) and (orientation: portrait) {
   .app-header {
     height: auto;
-    padding: 12px 16px;
+    padding: 10px 12px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 8px;
   }
   .brand-group {
     order: 1;
