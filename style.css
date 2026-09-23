@@ -2722,6 +2722,120 @@ body.stream-mode .random-goal-floating-btn {
   z-index: 10;
 }
 
+/* ==========================================================================
+   Rotating Colored Border for Active Kicker Image
+   "je kick marbe tar image ekta colored border ghurte thakbe.. jotokkhon na kicker result ase."
+   ========================================================================== */
+
+/* Outer boundary border of the active kicker image column */
+.penalty-rotating-border {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  overflow: hidden;
+  border-radius: inherit;
+  /* Mask out the interior so only a 4px outer frame border is visible */
+  padding: 4px;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.penalty-player-col.is-kicking .penalty-rotating-border {
+  opacity: 1;
+}
+
+.penalty-rotating-border::before {
+  content: '';
+  position: absolute;
+  top: -65%;
+  left: -65%;
+  width: 230%;
+  height: 230%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 45deg,
+    var(--player-color, #00f0ff) 80deg,
+    #ffffff 105deg,
+    var(--player-color, #00f0ff) 130deg,
+    transparent 170deg,
+    transparent 225deg,
+    var(--player-color, #00f0ff) 260deg,
+    #ffffff 285deg,
+    var(--player-color, #00f0ff) 310deg,
+    transparent 360deg
+  );
+  animation: rotateKickerBorderSpin 2.5s linear infinite;
+  filter: drop-shadow(0 0 14px var(--player-color, #00f0ff));
+}
+
+@keyframes rotateKickerBorderSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Rotating colored border around the kicker's circular avatar */
+.penalty-player-col.is-kicking .penalty-col-meta .avatar-wrapper {
+  position: relative;
+}
+
+.penalty-player-col.is-kicking .penalty-col-meta .avatar-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--player-color, #00f0ff) 60deg,
+    #ffffff 90deg,
+    var(--player-color, #00f0ff) 120deg,
+    transparent 180deg,
+    var(--player-color, #00f0ff) 240deg,
+    #ffffff 270deg,
+    var(--player-color, #00f0ff) 300deg,
+    transparent 360deg
+  );
+  animation: rotateAvatarRingSpin 1.6s linear infinite;
+  z-index: 0;
+  box-shadow: 0 0 16px var(--player-color, #00f0ff);
+}
+
+.penalty-player-col.is-kicking .penalty-col-meta .avatar-img {
+  position: relative;
+  z-index: 1;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+@keyframes rotateAvatarRingSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Subtle energetic glow on the active kicker's photo while preparing/taking kick */
+.penalty-player-col.is-kicking .penalty-col-photo {
+  filter: brightness(0.96) contrast(1.1);
+}
+
+.penalty-player-col.is-kicking .penalty-col-glow {
+  opacity: 1;
+  background: radial-gradient(
+    circle at 50% 30%,
+    rgba(var(--player-color-rgb, 0, 240, 255), 0.38) 0%,
+    transparent 70%
+  );
+  animation: kickerPhotoGlowPulse 2.2s infinite alternate ease-in-out;
+}
+
+@keyframes kickerPhotoGlowPulse {
+  0% { opacity: 0.65; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1.05); }
+}
+
 /* Full Bleed Background Photo */
 .penalty-col-bg {
   position: absolute;

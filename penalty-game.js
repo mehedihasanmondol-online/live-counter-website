@@ -374,7 +374,8 @@
         players.forEach((p, idx) => {
           const isCurrent = p.id === this.activePlayerId;
           const col = document.createElement('div');
-          col.className = `penalty-player-col ${isCurrent ? 'active' : ''}`;
+          col.className = `penalty-player-col ${isCurrent ? 'active is-kicking' : ''}`;
+          col.id = `penalty-col-${p.id}`;
           col.style.setProperty('--player-color', p.color);
           col.style.setProperty('--player-color-rgb', p.colorRgb || '0, 240, 255');
           col.setAttribute('title', `${p.name} - Score: ${p.score}`);
@@ -384,6 +385,7 @@
           const posY = p.penaltyPosY !== undefined ? p.penaltyPosY : 50;
 
           col.innerHTML = `
+            <div class="penalty-rotating-border"></div>
             <div class="penalty-col-bg">
               <img src="${p.avatar}" alt="${p.name}" class="penalty-col-photo" onerror="this.style.display='none'">
               <div class="penalty-col-gradient"></div>
@@ -529,6 +531,9 @@
           vs.innerText = 'VS';
           backdrop.appendChild(vs);
         }
+
+        // Activate rotating colored border on current kicker's image
+        this.updateKickerBorderState(false);
       }
 
       // 2. Fallback legacy container update if present
@@ -597,6 +602,17 @@
           numberEl.style.background = activeP.color;
         }
       }
+    }
+
+    updateKickerBorderState(hasResult = false) {
+      const cols = document.querySelectorAll('.penalty-player-col');
+      cols.forEach(col => {
+        if (!hasResult && col.id === `penalty-col-${this.activePlayerId}`) {
+          col.classList.add('is-kicking');
+        } else {
+          col.classList.remove('is-kicking');
+        }
+      });
     }
 
     setKickerStatus(state, customMsg = null) {
@@ -740,6 +756,7 @@
 
       this.setKickerStatus('ready');
       this.hideOutcomeBanner();
+      this.updateKickerBorderState(false);
     }
 
     resetKeeper() {
@@ -1129,6 +1146,9 @@
 
     handleOutcome(type, impactX, impactY) {
       if (this.resetTimer) clearTimeout(this.resetTimer);
+
+      // Kick result arrived! Stop rotating border while outcome banner displays
+      this.updateKickerBorderState(true);
 
       const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
       const activeP = players.find(p => p.id === this.activePlayerId) || players[0];
@@ -2196,6 +2216,29 @@
       ctx.beginPath();
       ctx.arc(0, headCenterY, headRadius, 0, Math.PI * 2);
       ctx.stroke();
+
+      // Rotating Colored Border around Kicker Head Avatar on Pitch (until result arrives)
+      const hasOutcomeArrived = ['goal', 'saved', 'post', 'missed'].includes(this.ball.state);
+      if (!hasOutcomeArrived) {
+        ctx.save();
+        ctx.translate(0, headCenterY);
+        const spinAngle = (Date.now() * 0.0035) % (Math.PI * 2);
+        ctx.rotate(spinAngle);
+        ctx.setLineDash([7, 5]);
+        ctx.strokeStyle = activeP.color || '#00f0ff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 0, headRadius + 3.5, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 9]);
+        ctx.beginPath();
+        ctx.arc(0, 0, headRadius + 3.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      }
 
       // Overhead Floating Name Plate: [ 👑 LIONEL MESSI ]
       const tagText = `👑 ${activeP.name.toUpperCase()} (KICKING)`;
