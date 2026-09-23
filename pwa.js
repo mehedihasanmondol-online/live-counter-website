@@ -15,7 +15,7 @@
   const updateActionBtn = document.getElementById('pwa-update-btn');
 
   // Automatic Cache Purge: Wipes legacy caches on client whenever version bumps
-  const APP_VERSION = 'v1.1.2';
+  const APP_VERSION = 'v1.1.4';
   try {
     const storedVersion = localStorage.getItem('arena_counter_version');
     if (storedVersion !== APP_VERSION) {

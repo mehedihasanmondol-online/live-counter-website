@@ -705,8 +705,11 @@
         depth: Math.floor(goalHeight * 0.42)
       };
 
-      // Elevated penalty spot & ball coordinates
-      this.penaltySpotY = Math.min(this.height * 0.79, goalBottom + (this.height - goalBottom) * 0.56);
+      // Official FIFA Regulation Proportions:
+      // Goal line = 0 yds, 6-yard box = 6 yds, Penalty Spot = 12 yds (11m), 18-yard box = 18 yds (16.5m)
+      const pitchDepth = this.height - goalBottom;
+      const penaltyBoxDepth = pitchDepth * (isMobile ? 0.45 : 0.48);
+      this.penaltySpotY = goalBottom + penaltyBoxDepth * (12 / 18);
 
       this.initNetMesh();
     }
@@ -739,7 +742,7 @@
 
     resetBall() {
       this.ball.x = this.width / 2;
-      this.ball.y = this.penaltySpotY || (this.height * 0.79);
+      this.ball.y = this.penaltySpotY || (this.goal.bottom + (this.height - this.goal.bottom) * 0.30);
       this.ball.z = 0;
       this.ball.vx = 0;
       this.ball.vy = 0;
@@ -1567,29 +1570,52 @@
       ctx.lineTo(this.goal.right + 60, this.goal.bottom);
       ctx.stroke();
 
-      // 6-yard Goal Area Box
-      const boxLeft = this.goal.left - 35;
-      const boxRight = this.goal.right + 35;
-      const boxBottom = this.goal.bottom + (h - this.goal.bottom) * 0.28;
+      const pitchDepth = h - this.goal.bottom;
+      const isMobile = w < 768;
+      const penaltyBoxDepth = pitchDepth * (isMobile ? 0.45 : 0.48);
+
+      // 1. 6-yard Goal Area Box (5.5m from goal line = exactly 1/3 of penalty box)
+      const sixYardDepth = penaltyBoxDepth * (6 / 18);
+      const sixYardBottom = this.goal.bottom + sixYardDepth;
+      const sixYardSpread = this.goal.width * 0.28;
+      const sixYardLeft = this.goal.left - sixYardSpread;
+      const sixYardRight = this.goal.right + sixYardSpread;
 
       ctx.beginPath();
-      ctx.moveTo(boxLeft, this.goal.bottom);
-      ctx.lineTo(boxLeft - 18, boxBottom);
-      ctx.lineTo(boxRight + 18, boxBottom);
-      ctx.lineTo(boxRight, this.goal.bottom);
+      ctx.moveTo(sixYardLeft, this.goal.bottom);
+      ctx.lineTo(sixYardLeft - 12, sixYardBottom);
+      ctx.lineTo(sixYardRight + 12, sixYardBottom);
+      ctx.lineTo(sixYardRight, this.goal.bottom);
       ctx.stroke();
 
-      // Penalty Spot
+      // 2. 18-yard Penalty Area Box (16.5m from goal line = full penalty box)
+      const penBoxBottom = this.goal.bottom + penaltyBoxDepth;
+      const penBoxSpread = this.goal.width * 0.65;
+      const penBoxLeft = this.goal.left - penBoxSpread;
+      const penBoxRight = this.goal.right + penBoxSpread;
+
+      ctx.beginPath();
+      ctx.moveTo(penBoxLeft, this.goal.bottom);
+      ctx.lineTo(penBoxLeft - 28, penBoxBottom);
+      ctx.lineTo(penBoxRight + 28, penBoxBottom);
+      ctx.lineTo(penBoxRight, this.goal.bottom);
+      ctx.stroke();
+
+      // 3. Official FIFA Penalty Mark (11m / 12 yards from goal line = exactly 2/3 of penalty box)
       const spotX = w / 2;
-      const spotY = this.penaltySpotY || (h * 0.79);
+      const spotY = this.penaltySpotY || (this.goal.bottom + penaltyBoxDepth * (12 / 18));
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(spotX, spotY, 6, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(spotX, spotY, 6.5, 3.5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Penalty Arc
+      // 4. Official Penalty Arc ("The D" - 10-yard radius from Penalty Mark outside the 18-yard box)
+      const arcRadiusY = penaltyBoxDepth * (10 / 18);
+      const arcRadiusX = arcRadiusY * (isMobile ? 1.55 : 1.75);
+      const intersectAngle = Math.asin(6 / 10); // sin(θ) = 6 yards / 10 yards = 0.6
+
       ctx.beginPath();
-      ctx.ellipse(spotX, spotY - 30, 80, 25, 0, 0, Math.PI);
+      ctx.ellipse(spotX, spotY, arcRadiusX, arcRadiusY, 0, intersectAngle, Math.PI - intersectAngle);
       ctx.stroke();
     }
 
@@ -2137,7 +2163,7 @@
 
       // Kicker position relative to penalty spot
       let kx = this.ball.x - 34;
-      let ky = (this.penaltySpotY || (this.height * 0.79)) + 4;
+      let ky = (this.penaltySpotY || (this.goal.bottom + (this.height - this.goal.bottom) * 0.30)) + 4;
 
       // Animate kicker depending on state
       if (this.ball.state === 'aiming') {
@@ -2292,7 +2318,7 @@
       }
 
       // 2. Ball Shadow
-      const baseSpotY = this.penaltySpotY || (this.height * 0.79);
+      const baseSpotY = this.penaltySpotY || (this.goal.bottom + (this.height - this.goal.bottom) * 0.30);
       const pitchGroundY = baseSpotY - (b.z * (baseSpotY - this.goal.bottom));
       const shadowY = Math.max(b.y, pitchGroundY);
       const elevation = Math.max(0, shadowY - b.y);
