@@ -232,6 +232,56 @@ body.stream-mode .app-header:hover {
   box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
 }
 
+.target-custom-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.target-custom-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 5px 8px;
+  width: 72px;
+  border-radius: 8px;
+  text-align: center;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+
+.target-custom-input::placeholder {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.target-custom-input:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.target-custom-input:focus,
+.target-custom-input.active {
+  border-color: var(--accent-cyan);
+  color: #fff;
+  background: rgba(0, 240, 255, 0.1);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+}
+
+/* Hide default browser up/down arrows on number input */
+.target-custom-input::-webkit-outer-spin-button,
+.target-custom-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.target-custom-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
 /* Stopwatch Widget */
 .timer-widget {
   display: flex;

@@ -57,6 +57,7 @@
   // DOM Elements
   const arenaGrid = document.getElementById('arena-grid');
   const targetButtons = document.querySelectorAll('.target-btn');
+  const targetCustomInput = document.getElementById('target-custom-input');
   const timerDisplay = document.getElementById('timer-display');
   const timerToggleBtn = document.getElementById('timer-toggle-btn');
   const timerResetBtn = document.getElementById('timer-reset-btn');
@@ -138,14 +139,26 @@
     }
 
     // Sync target button UI
+    let matchedPreset = false;
     targetButtons.forEach(btn => {
       const val = parseInt(btn.dataset.target, 10);
       if (val === targetScore) {
         btn.classList.add('active');
+        matchedPreset = true;
       } else {
         btn.classList.remove('active');
       }
     });
+
+    if (targetCustomInput) {
+      if (!matchedPreset && targetScore > 0) {
+        targetCustomInput.value = targetScore;
+        targetCustomInput.classList.add('active');
+      } else {
+        targetCustomInput.value = '';
+        targetCustomInput.classList.remove('active');
+      }
+    }
   }
 
   /* ==========================================================================
@@ -653,12 +666,50 @@
     targetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         targetButtons.forEach(b => b.classList.remove('active'));
+        if (targetCustomInput) {
+          targetCustomInput.classList.remove('active');
+          targetCustomInput.value = '';
+        }
         btn.classList.add('active');
         targetScore = parseInt(btn.dataset.target, 10);
         saveState();
         renderArena();
       });
     });
+
+    // Manual custom target input
+    if (targetCustomInput) {
+      const applyCustomTarget = () => {
+        const val = parseInt(targetCustomInput.value, 10);
+        if (!isNaN(val) && val > 0) {
+          targetButtons.forEach(b => b.classList.remove('active'));
+          targetCustomInput.classList.add('active');
+          targetScore = val;
+          saveState();
+          renderArena();
+        } else if (targetCustomInput.value.trim() === '') {
+          // If cleared, default to 0 / endless until typed
+          targetScore = 0;
+          saveState();
+          renderArena();
+        }
+      };
+
+      targetCustomInput.addEventListener('focus', () => {
+        targetButtons.forEach(b => b.classList.remove('active'));
+        targetCustomInput.classList.add('active');
+      });
+
+      targetCustomInput.addEventListener('input', applyCustomTarget);
+      targetCustomInput.addEventListener('change', applyCustomTarget);
+
+      targetCustomInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          applyCustomTarget();
+          targetCustomInput.blur();
+        }
+      });
+    }
 
     // Timer controls
     timerToggleBtn.addEventListener('click', toggleTimer);
