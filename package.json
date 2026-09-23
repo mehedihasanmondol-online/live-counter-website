@@ -1,0 +1,25 @@
+{
+  "name": "live-counter-website",
+  "version": "1.0.0",
+  "description": "Live Arena Counter Assistant & Broadcast Streaming Overlay",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "live-counter",
+    "scoreboard",
+    "obs-overlay",
+    "stream-assistant",
+    "hostinger-web-app"
+  ],
+  "author": "mehedihasanmondol-online",
+  "license": "MIT"
+}
