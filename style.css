@@ -1274,3 +1274,571 @@ body.stream-mode .exit-stream-btn {
     display: none;
   }
 }
+
+/* ==========================================================================
+   Penalty Shootout Mini-Game Styling
+   ========================================================================== */
+
+/* Floating Launcher Action Button */
+.penalty-floating-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 28px;
+  z-index: 850;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px 10px 12px;
+  background: linear-gradient(135deg, rgba(14, 22, 40, 0.92) 0%, rgba(8, 12, 24, 0.95) 100%);
+  border: 1.5px solid rgba(0, 240, 255, 0.4);
+  border-radius: 40px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  animation: floatBounce 3s ease-in-out infinite;
+}
+
+@keyframes floatBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.penalty-floating-btn:hover {
+  transform: translateY(-4px) scale(1.04);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 32px rgba(0, 240, 255, 0.5);
+  background: linear-gradient(135deg, rgba(20, 32, 58, 0.95) 0%, rgba(10, 16, 32, 0.98) 100%);
+}
+
+.penalty-floating-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.penalty-ball-icon-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  background: radial-gradient(circle, rgba(0, 240, 255, 0.25) 0%, rgba(0, 240, 255, 0.05) 70%);
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.penalty-ball-icon {
+  display: inline-block;
+  animation: ballSpin 12s linear infinite;
+}
+
+@keyframes ballSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.penalty-pulse-ring {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-cyan);
+  opacity: 0.6;
+  animation: pulseExpand 2s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+@keyframes pulseExpand {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.penalty-btn-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.penalty-title {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.penalty-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--accent-cyan);
+}
+
+/* Hide launcher when stream mode is active */
+body.stream-mode .penalty-floating-btn {
+  display: none !important;
+}
+
+/* Penalty Shootout Stadium Modal Backdrop */
+.penalty-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(4, 6, 14, 0.88);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.penalty-modal-backdrop.show {
+  display: flex;
+  opacity: 1;
+}
+
+/* Modal Dialog Window */
+.penalty-modal-dialog {
+  width: 100%;
+  max-width: 1140px;
+  height: 92vh;
+  max-height: 880px;
+  background: #080c16;
+  border: 1px solid rgba(0, 240, 255, 0.28);
+  border-radius: 20px;
+  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 240, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Header Bar */
+.penalty-arena-header {
+  min-height: 64px;
+  padding: 10px 20px;
+  background: rgba(12, 17, 30, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  z-index: 10;
+}
+
+.penalty-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.penalty-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-cyan);
+  letter-spacing: 0.5px;
+}
+
+.penalty-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--accent-cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.penalty-arena-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 1px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.penalty-arena-title span {
+  color: var(--accent-cyan);
+  margin-left: 4px;
+}
+
+/* Shooter Selection Group */
+.penalty-shooter-select-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.shooter-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.8px;
+}
+
+.penalty-shooter-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shooter-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 5px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1.5px solid transparent;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text-main);
+}
+
+.shooter-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.shooter-pill.active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--shooter-color, var(--accent-cyan));
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.3);
+}
+
+.shooter-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.shooter-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.shooter-name {
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.shooter-score {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent-cyan);
+}
+
+.auto-alt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.auto-alt-toggle input {
+  cursor: pointer;
+  accent-color: var(--accent-cyan);
+}
+
+/* Quick Stats HUD */
+.penalty-stats-hud {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-stat-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 3px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  min-width: 52px;
+}
+
+.stat-lbl {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+}
+
+.stat-val {
+  font-family: var(--font-score);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.stat-val.highlight {
+  color: var(--accent-emerald);
+  text-shadow: 0 0 8px rgba(5, 255, 161, 0.5);
+}
+
+.stat-val.streak {
+  color: var(--accent-gold);
+  text-shadow: 0 0 8px rgba(255, 200, 55, 0.5);
+}
+
+/* Header Actions */
+.penalty-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.penalty-header-actions .action-btn {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+}
+
+.penalty-header-actions .close-btn {
+  border-color: rgba(255, 42, 109, 0.4);
+  color: var(--accent-rose);
+}
+
+.penalty-header-actions .close-btn:hover {
+  background: var(--accent-rose);
+  color: #080c16;
+}
+
+/* Interactive Canvas Stage Container */
+.penalty-stage-wrap {
+  flex: 1;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+  background: #04060c;
+}
+
+#penalty-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+/* Current Shooter Badge inside Field */
+.penalty-current-shooter-badge {
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 14, 26, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  padding: 6px 14px 6px 8px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: var(--text-main);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.penalty-current-shooter-badge .badge-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--accent-cyan);
+}
+
+.penalty-current-shooter-badge strong {
+  color: var(--accent-cyan);
+}
+
+/* Gesture Guide Pill */
+.penalty-control-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(8, 12, 22, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+
+/* Dynamic Outcome Banner (GOAL, SAVED, POST, MISSED) */
+.penalty-outcome-banner {
+  position: absolute;
+  top: 36%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  pointer-events: none;
+  font-family: var(--font-score);
+  font-size: 3.8rem;
+  letter-spacing: 2px;
+  text-align: center;
+  padding: 12px 36px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  z-index: 50;
+}
+
+.penalty-outcome-banner.show {
+  transform: translate(-50%, -50%) scale(1);
+  opacity: 1;
+}
+
+/* Outcome Types */
+.penalty-outcome-banner.goal {
+  color: #ffffff;
+  background: radial-gradient(circle, rgba(5, 255, 161, 0.3) 0%, rgba(5, 255, 161, 0.08) 80%);
+  border: 2px solid var(--accent-emerald);
+  box-shadow: 0 0 50px rgba(5, 255, 161, 0.6), inset 0 0 20px rgba(5, 255, 161, 0.4);
+  text-shadow: 0 0 20px rgba(5, 255, 161, 0.8), 0 0 40px rgba(5, 255, 161, 0.5);
+  animation: goalBlast 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+}
+
+@keyframes goalBlast {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+.streak-subtag {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--accent-gold);
+  letter-spacing: 1px;
+  margin-top: 4px;
+  text-shadow: 0 0 10px rgba(255, 200, 55, 0.6);
+}
+
+.penalty-outcome-banner.saved {
+  color: #ffffff;
+  background: radial-gradient(circle, rgba(255, 42, 109, 0.25) 0%, rgba(255, 42, 109, 0.06) 80%);
+  border: 2px solid var(--accent-rose);
+  box-shadow: 0 0 40px rgba(255, 42, 109, 0.5);
+  text-shadow: 0 0 15px rgba(255, 42, 109, 0.7);
+}
+
+.penalty-outcome-banner.post {
+  color: #ffffff;
+  background: radial-gradient(circle, rgba(255, 200, 55, 0.25) 0%, rgba(255, 200, 55, 0.06) 80%);
+  border: 2px solid var(--accent-gold);
+  box-shadow: 0 0 40px rgba(255, 200, 55, 0.5);
+  text-shadow: 0 0 15px rgba(255, 200, 55, 0.7);
+}
+
+.penalty-outcome-banner.missed {
+  color: var(--text-muted);
+  background: rgba(18, 24, 40, 0.85);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+}
+
+/* Responsive Styles for Penalty Arena */
+@media (max-width: 900px) {
+  .penalty-floating-btn {
+    bottom: 18px;
+    right: 18px;
+    padding: 8px 14px 8px 10px;
+  }
+  .penalty-ball-icon-wrap {
+    width: 38px;
+    height: 38px;
+    font-size: 1.25rem;
+  }
+  .penalty-title {
+    font-size: 0.8rem;
+  }
+  .penalty-subtitle {
+    display: none;
+  }
+  .penalty-modal-dialog {
+    height: 98vh;
+    border-radius: 12px;
+  }
+  .penalty-arena-header {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .penalty-arena-title {
+    font-size: 0.95rem;
+  }
+  .penalty-stats-hud {
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 4px;
+  }
+  .hud-stat-pill {
+    min-width: 44px;
+    padding: 2px 6px;
+  }
+  .penalty-outcome-banner {
+    font-size: 2.6rem;
+    padding: 8px 20px;
+  }
+  .penalty-control-hint {
+    font-size: 0.68rem;
+    padding: 4px 12px;
+    max-width: 90%;
+    text-align: center;
+  }
+}
+

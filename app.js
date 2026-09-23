@@ -173,8 +173,16 @@
      Arena & Cards Rendering
      ========================================================================== */
 
+  const arenaListeners = [];
+  function notifyListeners() {
+    arenaListeners.forEach(fn => {
+      try { fn({ players, targetScore }); } catch (e) { console.error(e); }
+    });
+  }
+
   function renderArena() {
     arenaGrid.innerHTML = '';
+    notifyListeners();
 
     // Update grid column classes
     arenaGrid.className = 'arena-grid';
@@ -997,6 +1005,25 @@
     div.innerText = str;
     return div.innerHTML;
   }
+
+  // Expose public API for mini-games and integrations
+  window.arenaApp = {
+    getPlayers: () => players,
+    modifyScore: (playerId, delta, x, y) => modifyScore(playerId, delta, x, y),
+    getTargetScore: () => targetScore,
+    subscribe: (fn) => {
+      arenaListeners.push(fn);
+      try {
+        fn({ players, targetScore });
+      } catch (err) {
+        console.error(err);
+      }
+      return () => {
+        const idx = arenaListeners.indexOf(fn);
+        if (idx !== -1) arenaListeners.splice(idx, 1);
+      };
+    }
+  };
 
   // Run on DOM load
   if (document.readyState === 'loading') {
