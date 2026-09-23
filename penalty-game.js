@@ -111,6 +111,7 @@
         postRadius: 6,
         depth: 70
       };
+      this.penaltySpotY = 0;
 
       // Animation & Timing
       this.animId = null;
@@ -652,13 +653,16 @@
       this.canvas.height = this.height * this.dpr;
       this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
 
-      // Calculate goal coordinates based on canvas size
-      const goalWidth = Math.min(this.width * 0.58, 520);
+      // Calculate goal coordinates based on canvas size - elevated right below backdrop
+      const isMobile = this.width < 768;
+      const goalWidth = Math.min(this.width * (isMobile ? 0.65 : 0.56), 520);
       const goalHeight = goalWidth * 0.44;
       const goalLeft = (this.width - goalWidth) / 2;
       const goalRight = goalLeft + goalWidth;
-      const goalBottom = this.height * 0.65;
-      const goalTop = goalBottom - goalHeight;
+
+      const backdropHeight = this.height * (isMobile ? 0.38 : 0.44);
+      const goalTop = backdropHeight + 10;
+      const goalBottom = goalTop + goalHeight;
 
       this.goal = {
         left: goalLeft,
@@ -670,6 +674,9 @@
         postRadius: Math.max(5, Math.floor(goalWidth * 0.015)),
         depth: Math.floor(goalHeight * 0.42)
       };
+
+      // Elevated penalty spot & ball coordinates
+      this.penaltySpotY = Math.min(this.height * 0.79, goalBottom + (this.height - goalBottom) * 0.56);
 
       this.initNetMesh();
     }
@@ -702,7 +709,7 @@
 
     resetBall() {
       this.ball.x = this.width / 2;
-      this.ball.y = this.height * 0.88;
+      this.ball.y = this.penaltySpotY || (this.height * 0.79);
       this.ball.z = 0;
       this.ball.vx = 0;
       this.ball.vy = 0;
@@ -1480,7 +1487,7 @@
 
       // Penalty Spot
       const spotX = w / 2;
-      const spotY = h * 0.88;
+      const spotY = this.penaltySpotY || (h * 0.79);
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.ellipse(spotX, spotY, 6, 3, 0, 0, Math.PI * 2);
@@ -1706,7 +1713,7 @@
 
       // Kicker position relative to penalty spot
       let kx = this.ball.x - 34;
-      let ky = this.height * 0.88 + 4;
+      let ky = (this.penaltySpotY || (this.height * 0.79)) + 4;
 
       // Animate kicker depending on state
       if (this.ball.state === 'aiming') {
@@ -1838,7 +1845,8 @@
       }
 
       // 2. Ball Shadow
-      const pitchGroundY = this.height * 0.88 - (b.z * (this.height * 0.88 - this.goal.bottom));
+      const baseSpotY = this.penaltySpotY || (this.height * 0.79);
+      const pitchGroundY = baseSpotY - (b.z * (baseSpotY - this.goal.bottom));
       const shadowY = Math.max(b.y, pitchGroundY);
       const elevation = Math.max(0, shadowY - b.y);
       const shadowScale = Math.max(0.4, 1.0 - (elevation / 200));

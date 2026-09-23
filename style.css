@@ -2667,7 +2667,7 @@ body.stream-mode .random-goal-floating-btn {
   top: 0;
   left: 0;
   width: 100%;
-  height: 62%;
+  height: 44%;
   display: flex;
   flex-direction: row;
   z-index: 10;
@@ -3313,26 +3313,26 @@ body.stream-mode .random-goal-floating-btn {
     display: none !important;
   }
   .penalty-players-backdrop {
-    height: 52%; /* 52% keeps pitch, soccer goal & goalkeeper below 100% visible */
+    height: 38%; /* Elevates goal post and green soccer field significantly */
   }
   .penalty-score-num {
-    font-size: clamp(3.8rem, 12.5vw, 5.6rem);
+    font-size: clamp(3.2rem, 11vw, 4.6rem);
     line-height: 0.9;
     letter-spacing: 2px;
   }
   .penalty-vs-divider {
-    width: clamp(74px, 18.5vw, 98px);
-    height: clamp(74px, 18.5vw, 98px);
-    font-size: clamp(2.3rem, 6vw, 3.2rem);
-    outline-width: 2.5px;
-    outline-offset: 2.5px;
+    width: clamp(66px, 16vw, 86px);
+    height: clamp(66px, 16vw, 86px);
+    font-size: clamp(2rem, 5.5vw, 2.8rem);
+    outline-width: 2px;
+    outline-offset: 2px;
   }
   .penalty-score-draggable-badge {
-    padding: 4px 18px;
-    border-radius: 20px;
+    padding: 3px 14px;
+    border-radius: 18px;
     background: rgba(6, 10, 20, 0.75);
     border: 2px solid var(--player-color, rgba(0, 240, 255, 0.5));
-    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), 0 0 30px rgba(var(--player-color-rgb, 0, 240, 255), 0.4);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.9), 0 0 25px rgba(var(--player-color-rgb, 0, 240, 255), 0.4);
   }
   .penalty-col-header {
     padding: 8px 10px;
