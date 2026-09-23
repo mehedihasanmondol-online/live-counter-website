@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Live Arena Counter Assistant | Esports & Broadcast Streaming Overlay</title>
+  <meta name="description" content="Professional live video and streaming counter assistant. Multi-player interactive scoreboard with swipe gestures, Web Audio sound synthesis, 60fps confetti win animations, and OBS overlay tools.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+</head>
+<body>
+
+  <!-- Stream Mode Reveal Trigger Zone for OBS Hover -->
+  <div class="stream-mode-trigger" id="stream-mode-trigger" title="Hover to reveal stream controls"></div>
+
+  <!-- Top Broadcast Header Bar -->
+  <header class="app-header" id="app-header">
+    <!-- Brand / Status -->
+    <div class="brand-group">
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        <span>LIVE</span>
+      </div>
+      <h1 class="brand-title">ARENA<span>COUNTER</span></h1>
+    </div>
+
+    <!-- Match Target & Stopwatch Controls -->
+    <div class="match-controls-center">
+      <!-- Target Score Selector -->
+      <div class="control-pill-group" title="Target score to win match">
+        <span class="control-label">TARGET:</span>
+        <button class="target-btn" data-target="20" id="target-btn-20">20</button>
+        <button class="target-btn" data-target="50" id="target-btn-50">50</button>
+        <button class="target-btn active" data-target="100" id="target-btn-100">100</button>
+        <button class="target-btn" data-target="0" id="target-btn-endless" title="No target limit">∞</button>
+      </div>
+
+      <!-- Match Stopwatch -->
+      <div class="timer-widget" title="Match Stopwatch">
+        <button class="timer-btn" id="timer-toggle-btn" title="Start/Pause Timer (Space)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </button>
+        <div class="timer-display" id="timer-display">00:00</div>
+        <button class="timer-btn" id="timer-reset-btn" title="Reset Timer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M23 4v6h-6"></path>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Toolbar Actions -->
+    <div class="toolbar-actions">
+      <!-- Undo Action -->
+      <button class="action-btn" id="undo-btn" title="Undo Last Score Change (Z / Ctrl+Z)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M3 7v6h6"></path>
+          <path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path>
+        </svg>
+        <span>UNDO</span>
+      </button>
+
+      <!-- Add Player -->
+      <button class="action-btn primary" id="add-player-btn" title="Add another player">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        <span>ADD PLAYER</span>
+      </button>
+
+      <!-- Reset All Scores -->
+      <button class="action-btn" id="reset-btn" title="Reset all player scores (R)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 2v6h6"></path>
+          <path d="M21 12A9 9 0 0 0 6 5.3L3 8"></path>
+          <path d="M21 22v-6h-6"></path>
+          <path d="M3 12a9 9 0 0 0 15 6.7l3-2.7"></path>
+        </svg>
+        <span>RESET</span>
+      </button>
+
+      <!-- Theme / Chroma Picker for OBS -->
+      <select class="action-btn" id="theme-select" title="Background Theme & OBS Chroma Modes" style="background: rgba(255,255,255,0.06); outline: none; border-radius: 10px; cursor: pointer;">
+        <option value="default">🎨 Broadcast Dark</option>
+        <option value="chroma-green">🟩 OBS Green Screen</option>
+        <option value="chroma-blue">🟦 OBS Blue Screen</option>
+        <option value="transparent">🪟 OBS Transparent</option>
+      </select>
+
+      <!-- OBS Stream Overlay Clean Mode -->
+      <button class="action-btn icon-only" id="stream-toggle-btn" title="OBS Clean Stream Overlay Mode (H)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      </button>
+
+      <!-- Sound Toggle -->
+      <button class="action-btn icon-only" id="sound-toggle-btn" title="Toggle Sound FX (M)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+        </svg>
+      </button>
+
+      <!-- Fullscreen -->
+      <button class="action-btn icon-only" id="fullscreen-btn" title="Fullscreen (F)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+        </svg>
+      </button>
+
+      <!-- Shortcuts / Help -->
+      <button class="action-btn icon-only" id="shortcuts-btn" title="Shortcuts & Gestures Help (?)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Multi-Player Arena -->
+  <main class="arena-container">
+    <div class="arena-grid" id="arena-grid">
+      <!-- Player cards injected dynamically via app.js -->
+    </div>
+  </main>
+
+  <!-- Floating Stream Mode Exit Trigger -->
+  <button class="exit-stream-btn" id="exit-stream-btn" title="Exit Clean Stream Overlay Mode (H)">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+      <line x1="1" y1="1" x2="23" y2="23"></line>
+    </svg>
+    <span>EXIT STREAM MODE (H)</span>
+  </button>
+
+  <!-- Winner Celebration Modal -->
+  <div class="modal-backdrop" id="winner-modal">
+    <div class="modal-dialog">
+      <div class="winner-card-content">
+        <div class="trophy-glow">🏆</div>
+        <div class="winner-subtitle">VICTORY CHAMPION</div>
+        <h2 class="winner-name" id="winner-name">LIONEL MESSI</h2>
+        <div class="winner-avatar-frame">
+          <img id="winner-avatar" src="assets/messi.jpg" alt="Winner Avatar">
+        </div>
+        <div class="winner-score-tag" id="winner-score">FINAL SCORE: 100</div>
+        <div class="modal-actions">
+          <button class="modal-btn secondary" id="close-winner-btn">Close</button>
+          <button class="modal-btn primary" id="rematch-btn">REMATCH ⚡</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Editor / Customization Modal -->
+  <div class="modal-backdrop" id="player-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="player-modal-title">Customize Player</h3>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="player-name-input">Player Name</label>
+          <input type="text" class="form-input" id="player-name-input" placeholder="e.g. Lionel Messi" maxlength="28">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="player-tag-input">Tagline / Number</label>
+          <input type="text" class="form-input" id="player-tag-input" placeholder="e.g. LEO 10, CR7, PRO" maxlength="16">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Theme Accent Color</label>
+          <div class="color-swatches" id="color-swatches"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="player-avatar-input">Avatar Image</label>
+          <div class="avatar-preview-row">
+            <img class="preview-avatar-circle" id="preview-avatar-circle" src="assets/messi.jpg" alt="Avatar Preview">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+              <input type="text" class="form-input" id="player-avatar-input" placeholder="Image URL (or assets/messi.jpg)">
+              <label class="action-btn" style="cursor: pointer; justify-content: center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>Upload From Device</span>
+                <input type="file" id="avatar-upload-file" accept="image/*" style="display: none;">
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 10px;">
+          <button class="modal-btn secondary" id="delete-player-btn" style="background: rgba(255,42,109,0.15); color: var(--accent-rose); border-color: rgba(255,42,109,0.3);">Delete</button>
+          <button class="modal-btn secondary" id="cancel-player-btn">Cancel</button>
+          <button class="modal-btn primary" id="save-player-btn">Save Player</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts & Gestures Modal -->
+  <div class="modal-backdrop" id="shortcuts-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Live Controls & Shortcuts</h3>
+      </div>
+      <div class="modal-body">
+        <div class="shortcuts-grid">
+          <div class="shortcut-item">
+            <span>Tap / Click Card</span>
+            <span class="key-kbd">+1 Score</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Swipe / Drag Up</span>
+            <span class="key-kbd">+1 Score</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Swipe / Drag Down</span>
+            <span class="key-kbd">-1 Score</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Mouse Wheel Up / Down</span>
+            <span class="key-kbd">+/- 1</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Keys 1 to 9</span>
+            <span class="key-kbd">+1 for P1-9</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Shift + 1 to 9</span>
+            <span class="key-kbd">-1 for P1-9</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Undo Action</span>
+            <span class="key-kbd">Z</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Start/Pause Timer</span>
+            <span class="key-kbd">Space</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Clean OBS Overlay</span>
+            <span class="key-kbd">H</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Mute / Unmute Sound</span>
+            <span class="key-kbd">M</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Fullscreen Mode</span>
+            <span class="key-kbd">F</span>
+          </div>
+          <div class="shortcut-item">
+            <span>Reset All Scores</span>
+            <span class="key-kbd">R</span>
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top: 14px;">
+          <button class="modal-btn primary" id="close-shortcuts-btn">Got It!</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="audio.js"></script>
+  <script src="confetti.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

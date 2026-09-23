@@ -1,0 +1,1097 @@
+/* ==========================================================================
+   Live Counter Assistant - Esports & Broadcast Design System
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Color Tokens */
+  --bg-primary: #080a10;
+  --bg-secondary: #0f1322;
+  --bg-card: rgba(18, 24, 40, 0.72);
+  --bg-card-hover: rgba(26, 34, 58, 0.85);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(0, 240, 255, 0.35);
+
+  --text-main: #f3f6fc;
+  --text-muted: #8b99b5;
+  --text-dim: #54627d;
+
+  --accent-cyan: #00f0ff;
+  --accent-rose: #ff2a6d;
+  --accent-gold: #ffc837;
+  --accent-emerald: #05ffa1;
+  --accent-purple: #b537f2;
+  --accent-orange: #ff7700;
+
+  /* Typography */
+  --font-score: 'Bebas Neue', sans-serif;
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Elevation & Shadows */
+  --shadow-card: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 0, 0, 0.4);
+  --shadow-neon: 0 0 25px rgba(0, 240, 255, 0.4);
+
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Base Reset & Setup */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-image: 
+    radial-gradient(circle at 15% 20%, rgba(0, 240, 255, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 85% 80%, rgba(255, 42, 109, 0.08) 0%, transparent 45%),
+    linear-gradient(180deg, #090c14 0%, #05060a 100%);
+  transition: background-color var(--transition-normal);
+}
+
+/* Background Theme Variations (Chroma & Transparent for OBS) */
+body.theme-chroma-green {
+  background: #00b140 !important;
+}
+body.theme-chroma-green .app-header {
+  background: rgba(0, 0, 0, 0.7);
+}
+body.theme-chroma-blue {
+  background: #0047bb !important;
+}
+body.theme-transparent {
+  background: transparent !important;
+}
+body.theme-transparent .arena-container {
+  background: transparent !important;
+}
+
+/* Top Broadcast Header / Control Bar */
+.app-header {
+  height: 72px;
+  min-height: 72px;
+  background: rgba(12, 16, 28, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+  transition: transform var(--transition-normal), opacity var(--transition-normal);
+}
+
+/* Streamer / OBS Overlay Mode: Auto hides header */
+body.stream-mode .app-header {
+  transform: translateY(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hover reveal zone for stream mode */
+.stream-mode-trigger {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 18px;
+  z-index: 1000;
+  cursor: pointer;
+}
+body.stream-mode .stream-mode-trigger {
+  display: block;
+}
+body.stream-mode .stream-mode-trigger:hover + .app-header,
+body.stream-mode .app-header:hover {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Brand & Match Ticker */
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 42, 109, 0.15);
+  border: 1px solid rgba(255, 42, 109, 0.4);
+  color: var(--accent-rose);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--accent-rose);
+  box-shadow: 0 0 10px var(--accent-rose);
+  animation: pulse-live 1.4s infinite ease-in-out;
+}
+
+@keyframes pulse-live {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.4; }
+}
+
+.brand-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-title span {
+  color: var(--accent-cyan);
+}
+
+/* Center Match Controls (Target & Timer) */
+.match-controls-center {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.control-pill-group {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.control-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 0 8px;
+}
+
+.target-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.target-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.target-btn.active {
+  background: var(--accent-cyan);
+  color: #080a10;
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+/* Stopwatch Widget */
+.timer-widget {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 4px 8px;
+  gap: 10px;
+}
+
+.timer-display {
+  font-family: var(--font-score);
+  font-size: 1.5rem;
+  letter-spacing: 1.5px;
+  color: #fff;
+  min-width: 68px;
+  text-align: center;
+}
+
+.timer-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.timer-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.timer-btn.active {
+  color: var(--accent-emerald);
+}
+
+/* Header Action Toolbar */
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.action-btn.icon-only {
+  padding: 8px;
+  width: 38px;
+  height: 38px;
+  justify-content: center;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.2), rgba(0, 150, 255, 0.3));
+  border-color: rgba(0, 240, 255, 0.5);
+  color: var(--accent-cyan);
+}
+.action-btn.primary:hover {
+  background: var(--accent-cyan);
+  color: #080a10;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+}
+
+/* Main Arena Container */
+.arena-container {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  padding: 20px;
+  gap: 20px;
+  align-items: stretch;
+}
+
+/* Arena Grid System */
+.arena-grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 20px;
+  transition: all var(--transition-normal);
+}
+
+/* 1 Player */
+.arena-grid.players-1 {
+  grid-template-columns: minmax(320px, 700px);
+  justify-content: center;
+}
+
+/* 2 Players: 50/50 Split Screen */
+.arena-grid.players-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* 3 Players: 3 Columns */
+.arena-grid.players-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* 4 Players: 4 Columns or 2x2 */
+.arena-grid.players-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* 5+ Players */
+.arena-grid.players-many {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+/* Versus Emblem (Center Badge for 2 players) */
+.vs-divider {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #1a2236 0%, #0a0d16 100%);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-score);
+  font-size: 1.8rem;
+  letter-spacing: 1px;
+  color: #fff;
+  z-index: 50;
+  pointer-events: none;
+  animation: pulse-vs 3s infinite ease-in-out;
+}
+@keyframes pulse-vs {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.08); box-shadow: 0 0 35px rgba(0, 240, 255, 0.3); }
+}
+
+/* ==========================================================================
+   Player Card Architecture
+   ========================================================================== */
+
+.player-card {
+  --player-color: var(--accent-cyan);
+  position: relative;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 24px;
+  border: 2px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-fast), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  cursor: pointer;
+  touch-action: none; /* Crucial for custom touch swipe gestures */
+}
+
+.player-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.player-card:active {
+  transform: scale(0.992);
+}
+
+/* Leader Glow */
+.player-card.is-leader {
+  border-color: var(--player-color);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 35px rgba(var(--player-color-rgb, 0, 240, 255), 0.3);
+}
+
+/* Near Match Point Tension Pulse */
+.player-card.tension-mode {
+  animation: tension-pulse 1s infinite alternate ease-in-out;
+}
+@keyframes tension-pulse {
+  0% { box-shadow: 0 0 20px rgba(255, 42, 109, 0.4); border-color: rgba(255, 42, 109, 0.6); }
+  100% { box-shadow: 0 0 50px rgba(255, 42, 109, 0.85); border-color: rgba(255, 42, 109, 1); }
+}
+
+/* Swipe Direction Highlights */
+.player-card.swipe-up-active {
+  transform: translateY(-8px);
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 35px rgba(5, 255, 161, 0.5);
+}
+.player-card.swipe-down-active {
+  transform: translateY(8px);
+  border-color: var(--accent-rose);
+  box-shadow: 0 0 35px rgba(255, 42, 109, 0.5);
+}
+
+/* Card Header Section */
+.card-header {
+  padding: 16px 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+
+.player-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: linear-gradient(135deg, var(--player-color), rgba(255, 255, 255, 0.1));
+  box-shadow: 0 0 15px rgba(var(--player-color-rgb, 0, 240, 255), 0.4);
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: #121828;
+  display: block;
+}
+
+.leader-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--accent-gold);
+  color: #080a10;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  box-shadow: 0 0 12px var(--accent-gold);
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all var(--transition-spring);
+}
+
+.player-card.is-leader .leader-badge {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.player-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.player-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.player-name {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.3px;
+  line-height: 1.2;
+}
+
+.player-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--player-color);
+  letter-spacing: 1px;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-icon-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.card-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+}
+
+/* ==========================================================================
+   Interactive Score Zone (Big Bold Counter)
+   ========================================================================== */
+
+.score-zone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 100%;
+  padding: 10px 20px;
+}
+
+/* Visual swipe instruction hints */
+.swipe-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  opacity: 0.6;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+.swipe-hint.hint-up {
+  margin-bottom: -10px;
+}
+.swipe-hint.hint-down {
+  margin-top: -10px;
+}
+.player-card:hover .swipe-hint {
+  opacity: 1;
+}
+
+.score-display-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.score-number {
+  font-family: var(--font-score);
+  font-size: clamp(6.5rem, 16vw, 14rem);
+  line-height: 0.9;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 
+    0 0 20px rgba(var(--player-color-rgb, 0, 240, 255), 0.5),
+    0 10px 40px rgba(0, 0, 0, 0.8);
+  transition: transform var(--transition-fast);
+  will-change: transform;
+}
+
+/* Pop animation on score increase */
+.score-number.pop-up {
+  animation: number-pop-up 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes number-pop-up {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15) translateY(-5px); color: var(--accent-emerald); }
+  100% { transform: scale(1); }
+}
+
+/* Drop animation on score decrease */
+.score-number.pop-down {
+  animation: number-pop-down 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes number-pop-down {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.9) translateY(5px); color: var(--accent-rose); }
+  100% { transform: scale(1); }
+}
+
+/* Floating Particles (+1 / -1) */
+.floating-particle {
+  position: absolute;
+  font-family: var(--font-score);
+  font-size: 2.8rem;
+  letter-spacing: 1px;
+  font-weight: 900;
+  pointer-events: none;
+  z-index: 99;
+  animation: float-and-fade 0.75s forwards cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+
+.floating-particle.increment {
+  color: var(--accent-emerald);
+  text-shadow: 0 0 20px var(--accent-emerald), 0 0 40px rgba(5, 255, 161, 0.5);
+}
+
+.floating-particle.decrement {
+  color: var(--accent-rose);
+  text-shadow: 0 0 20px var(--accent-rose), 0 0 40px rgba(255, 42, 109, 0.5);
+}
+
+@keyframes float-and-fade {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  30% {
+    transform: translate(-50%, -80%) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -150%) scale(1);
+  }
+}
+
+/* ==========================================================================
+   Card Bottom: Quick Action Controls & Target Progress Bar
+   ========================================================================== */
+
+.card-footer {
+  padding: 12px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 10;
+}
+
+.target-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.target-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.2), var(--player-color));
+  box-shadow: 0 0 10px var(--player-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.quick-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.quick-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: #fff;
+  padding: 12px;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.quick-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.quick-btn:active {
+  transform: translateY(0);
+}
+
+.quick-btn.inc {
+  background: rgba(5, 255, 161, 0.12);
+  border-color: rgba(5, 255, 161, 0.3);
+  color: var(--accent-emerald);
+}
+.quick-btn.inc:hover {
+  background: rgba(5, 255, 161, 0.25);
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 15px rgba(5, 255, 161, 0.3);
+}
+
+.quick-btn.dec {
+  background: rgba(255, 42, 109, 0.12);
+  border-color: rgba(255, 42, 109, 0.3);
+  color: var(--accent-rose);
+}
+.quick-btn.dec:hover {
+  background: rgba(255, 42, 109, 0.25);
+  border-color: var(--accent-rose);
+  box-shadow: 0 0 15px rgba(255, 42, 109, 0.3);
+}
+
+/* ==========================================================================
+   Modals (Winner Celebration & Player Editor & Shortcuts)
+   ========================================================================== */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 15, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-normal);
+  padding: 20px;
+}
+
+.modal-backdrop.show {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal-dialog {
+  background: #0f1424;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 28px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 240, 255, 0.2);
+  width: 100%;
+  max-width: 520px;
+  overflow: hidden;
+  transform: translateY(20px) scale(0.95);
+  transition: transform var(--transition-spring);
+}
+
+.modal-backdrop.show .modal-dialog {
+  transform: translateY(0) scale(1);
+}
+
+/* Winner Modal Specific Styling */
+.winner-card-content {
+  padding: 40px 30px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.trophy-glow {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 200, 55, 0.3) 0%, transparent 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  margin-bottom: 14px;
+  animation: float-trophy 2.5s infinite ease-in-out;
+}
+@keyframes float-trophy {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.winner-subtitle {
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent-gold);
+  margin-bottom: 6px;
+}
+
+.winner-name {
+  font-family: var(--font-display);
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 16px;
+  text-shadow: 0 0 25px rgba(255, 200, 55, 0.5);
+}
+
+.winner-avatar-frame {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  padding: 5px;
+  background: linear-gradient(135deg, var(--accent-gold), var(--accent-cyan));
+  box-shadow: 0 0 35px rgba(255, 200, 55, 0.5);
+  margin-bottom: 24px;
+}
+
+.winner-avatar-frame img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.winner-score-tag {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-family: var(--font-score);
+  font-size: 1.6rem;
+  letter-spacing: 1px;
+  color: #fff;
+  margin-bottom: 30px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: none;
+  transition: all var(--transition-fast);
+}
+
+.modal-btn.primary {
+  background: var(--accent-cyan);
+  color: #080a10;
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+}
+.modal-btn.primary:hover {
+  background: #33f3ff;
+  box-shadow: 0 0 30px rgba(0, 240, 255, 0.6);
+  transform: translateY(-2px);
+}
+
+.modal-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid var(--border-subtle);
+}
+.modal-btn.secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Edit Player Modal Form */
+.modal-header {
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.modal-body {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.form-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.form-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+}
+
+.color-swatches {
+  display: flex;
+  gap: 10px;
+}
+
+.color-swatch {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+.color-swatch:hover {
+  transform: scale(1.1);
+}
+.color-swatch.active {
+  border-color: #fff;
+  box-shadow: 0 0 15px currentColor;
+}
+
+.avatar-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.preview-avatar-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent-cyan);
+}
+
+/* Floating OBS Overlay Mode Exit Button */
+.exit-stream-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: rgba(12, 16, 28, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  z-index: 500;
+  transition: all var(--transition-fast);
+}
+body.stream-mode .exit-stream-btn {
+  display: flex;
+}
+.exit-stream-btn:hover {
+  background: var(--accent-cyan);
+  color: #080a10;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+}
+
+/* Keyboard Shortcuts Modal List */
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.key-kbd {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .app-header {
+    height: auto;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .brand-group {
+    order: 1;
+  }
+  .toolbar-actions {
+    order: 2;
+  }
+  .match-controls-center {
+    order: 3;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .arena-grid.players-2 {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  .vs-divider {
+    display: none;
+  }
+}
