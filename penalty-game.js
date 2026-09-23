@@ -107,6 +107,9 @@
       this.lastTime = 0;
       this.resetTimer = null;
       this.screenShake = 0;
+      this.lastKickTimestamp = 0;
+      this.activePointerId = null;
+      this.backdropPointerDown = false;
 
       // DOM Elements
       this.modalEl = null;
@@ -168,16 +171,49 @@
       // Close modal button
       const closeBtn = document.getElementById('close-penalty-btn');
       if (closeBtn) {
-        closeBtn.addEventListener('click', () => this.closeGame());
+        closeBtn.addEventListener('click', (e) => {
+          // If a kick just occurred within 1200ms or ball is dragging, prevent accidental trigger
+          if (this.ball.isDragging || Date.now() - this.lastKickTimestamp < 1200) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          this.closeGame();
+        });
       }
 
-      // Close modal on backdrop click outside dialog
+      // Close modal ONLY on deliberate backdrop click (both pointerdown AND click on backdrop itself)
       if (this.modalEl) {
+        this.modalEl.addEventListener('pointerdown', (e) => {
+          this.backdropPointerDown = (e.target === this.modalEl);
+        });
+
         this.modalEl.addEventListener('click', (e) => {
-          if (e.target === this.modalEl) {
+          const wasBackdropStart = this.backdropPointerDown;
+          this.backdropPointerDown = false;
+
+          // Never close modal on backdrop if a shot was just taken or currently in flight or dragging
+          if (
+            wasBackdropStart &&
+            e.target === this.modalEl &&
+            !this.ball.isDragging &&
+            this.ball.state !== 'flying' &&
+            Date.now() - this.lastKickTimestamp > 1500
+          ) {
             this.closeGame();
           }
         });
+
+        // Prevent clicks & pointer events inside dialog from bubbling to the backdrop
+        const dialogEl = this.modalEl.querySelector('.penalty-modal-dialog');
+        if (dialogEl) {
+          dialogEl.addEventListener('pointerdown', (e) => {
+            this.backdropPointerDown = false;
+          });
+          dialogEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+        }
       }
 
       // Close on Escape key & 'P' toggle
@@ -521,7 +557,17 @@
         this.ball.dragCurrentY = pos.y;
         this.ball.state = 'aiming';
         this.setKickerStatus('aiming');
-        e.preventDefault();
+
+        // Capture pointer to canvas so fast flicks outside never trigger clicks on modal backdrop/header
+        if (e && e.pointerId !== undefined && this.canvas.setPointerCapture) {
+          try {
+            this.canvas.setPointerCapture(e.pointerId);
+            this.activePointerId = e.pointerId;
+          } catch (err) {}
+        }
+
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
       }
     }
 
@@ -536,12 +582,29 @@
       const dx = pos.x - this.ball.dragStartX;
       const dist = Math.hypot(dx, dy);
       this.kicker.legAngle = Math.min(dist / 60, 1.2);
+
+      if (e.preventDefault) e.preventDefault();
     }
 
     handlePointerUp(e) {
       if (!this.ball.isDragging || this.ball.state !== 'aiming') return;
 
+      // Cleanly release pointer capture
+      if (this.activePointerId !== null && this.canvas.releasePointerCapture) {
+        try {
+          this.canvas.releasePointerCapture(this.activePointerId);
+        } catch (err) {}
+        this.activePointerId = null;
+      }
+
       this.ball.isDragging = false;
+      this.lastKickTimestamp = Date.now();
+
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+
       const pos = this.getCanvasPointerPos(e);
 
       let deltaX = pos.x - this.ball.dragStartX;
@@ -570,6 +633,7 @@
 
     launchBall(deltaX, deltaY, powerMag) {
       this.ball.state = 'flying';
+      this.lastKickTimestamp = Date.now();
       this.setKickerStatus('kicked');
       this.kicker.kickProgress = 1.0;
 

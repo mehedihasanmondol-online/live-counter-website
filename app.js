@@ -496,6 +496,14 @@
 
     // Check if target reached
     if (targetScore > 0 && player.score >= targetScore) {
+      if (window.penaltyGame && window.penaltyGame.isOpen) {
+        // Celebrate inside penalty arena without abruptly opening home winner modal
+        winner = player;
+        if (window.soundEngine && window.soundEngine.playFanfare) window.soundEngine.playFanfare();
+        if (window.confettiEngine && window.confettiEngine.fireworks) window.confettiEngine.fireworks();
+        renderArena();
+        return;
+      }
       triggerWin(player);
       return;
     }
