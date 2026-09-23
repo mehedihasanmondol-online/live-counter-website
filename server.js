@@ -37,9 +37,12 @@ function startWithExpress() {
     maxAge: '1d',
     etag: true,
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) {
-        // Do not aggressively cache HTML to ensure instant updates
-        res.setHeader('Cache-Control', 'no-cache');
+      if (filePath.endsWith('.html') || filePath.endsWith('sw.js')) {
+        // Do not cache HTML or Service Worker to ensure instant updates
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      } else if (filePath.endsWith('.webmanifest')) {
+        res.setHeader('Content-Type', 'application/manifest+json');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
       } else if (filePath.match(/\.(jpg|jpeg|png|gif|svg|ico|webp|mp3|wav|ogg)$/)) {
         res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
       }
@@ -68,6 +71,7 @@ function startNativeHttp() {
     '.css': 'text/css; charset=utf-8',
     '.js': 'application/javascript; charset=utf-8',
     '.json': 'application/json',
+    '.webmanifest': 'application/manifest+json',
     '.svg': 'image/svg+xml',
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',

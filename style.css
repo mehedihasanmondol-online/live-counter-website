@@ -2957,3 +2957,223 @@ body.stream-mode .random-goal-floating-btn {
   }
 }
 
+/* ==========================================================================
+   Progressive Web App (PWA) Styling System
+   ========================================================================== */
+
+/* Universal hidden helper */
+.hidden {
+  display: none !important;
+}
+
+/* PWA Install Button in Toolbar */
+.action-btn.pwa-install-btn {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.16) 0%, rgba(181, 55, 242, 0.22) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.5);
+  color: #00f0ff;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+  animation: pwaPulseGlow 3s infinite alternate ease-in-out;
+}
+
+.action-btn.pwa-install-btn:hover {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.3) 0%, rgba(181, 55, 242, 0.4) 100%);
+  border-color: #00f0ff;
+  color: #ffffff;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+@keyframes pwaPulseGlow {
+  0% {
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    border-color: rgba(0, 240, 255, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 22px rgba(181, 55, 242, 0.45), 0 0 10px rgba(0, 240, 255, 0.35);
+    border-color: rgba(181, 55, 242, 0.7);
+  }
+}
+
+/* PWA Offline / Connection Status Badge */
+.pwa-offline-badge {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition: all var(--transition-normal);
+  white-space: nowrap;
+}
+
+.pwa-offline-badge.visible {
+  display: inline-flex;
+}
+
+.pwa-offline-badge.offline {
+  background: rgba(255, 119, 0, 0.16);
+  border: 1px solid rgba(255, 119, 0, 0.5);
+  color: #ffaa44;
+  box-shadow: 0 0 14px rgba(255, 119, 0, 0.25);
+}
+
+.pwa-offline-badge.offline .offline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #ff7700;
+  box-shadow: 0 0 8px #ff7700;
+  animation: offlineBlink 1.4s infinite;
+}
+
+.pwa-offline-badge.online-restored {
+  background: rgba(5, 255, 161, 0.16);
+  border: 1px solid rgba(5, 255, 161, 0.5);
+  color: #05ffa1;
+  box-shadow: 0 0 14px rgba(5, 255, 161, 0.3);
+}
+
+.pwa-offline-badge.online-restored .online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: #05ffa1;
+  box-shadow: 0 0 8px #05ffa1;
+}
+
+@keyframes offlineBlink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.85); }
+}
+
+/* PWA Update Ready Toast Notification */
+.pwa-update-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: rgba(15, 19, 34, 0.95);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 14px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 240, 255, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transform: translateY(140%);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.35s ease;
+  max-width: 440px;
+}
+
+.pwa-update-toast.visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pwa-toast-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pwa-toast-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 8px #00f0ff);
+}
+
+.pwa-toast-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pwa-toast-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.92rem;
+  color: #f3f6fc;
+  letter-spacing: 0.5px;
+}
+
+.pwa-toast-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.pwa-update-btn {
+  background: linear-gradient(135deg, #00f0ff 0%, #00a8ff 100%);
+  color: #05070d;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 0.76rem;
+  letter-spacing: 1px;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+}
+
+.pwa-update-btn:hover {
+  background: #ffffff;
+  color: #05070d;
+  box-shadow: 0 0 20px #00f0ff;
+  transform: scale(1.05);
+}
+
+/* Transient Feedback Toast */
+.pwa-transient-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(40px);
+  background: rgba(18, 24, 40, 0.94);
+  color: #f3f6fc;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 30px;
+  padding: 10px 22px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 18px rgba(0, 240, 255, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 100001;
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.pwa-transient-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .pwa-update-toast {
+    left: 12px;
+    right: 12px;
+    bottom: 16px;
+    max-width: none;
+    padding: 12px 16px;
+  }
+}
+
+

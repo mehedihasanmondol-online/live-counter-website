@@ -1,0 +1,91 @@
+{
+  "id": "/?source=pwa",
+  "name": "Live Arena Counter Assistant",
+  "short_name": "ArenaCounter",
+  "description": "Professional live video and broadcast streaming counter assistant. Multi-player interactive scoreboard with swipe gestures, Web Audio sound synthesis, 60fps confetti win animations, and penalty shootout arena.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#080a10",
+  "theme_color": "#080a10",
+  "orientation": "any",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "sports",
+    "utilities",
+    "entertainment",
+    "games"
+  ],
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Penalty Shootout Arena",
+      "short_name": "Shootout",
+      "description": "Launch straight into the penalty shootout arena challenge",
+      "url": "./?action=shootout",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Broadcast Stream Mode",
+      "short_name": "Stream Mode",
+      "description": "Launch clean broadcast overlay mode for OBS / live streams",
+      "url": "./?action=stream",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Reset All Scores",
+      "short_name": "Reset Scores",
+      "description": "Quickly reset scores to match starting values",
+      "url": "./?action=reset",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [],
+  "prefer_related_applications": false
+}

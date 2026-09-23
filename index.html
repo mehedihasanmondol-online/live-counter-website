@@ -5,8 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Live Arena Counter Assistant | Esports & Broadcast Streaming Overlay</title>
   <meta name="description" content="Professional live video and streaming counter assistant. Multi-player interactive scoreboard with swipe gestures, Web Audio sound synthesis, 60fps confetti win animations, and OBS overlay tools.">
+  <!-- Progressive Web App (PWA) Manifest & Meta Tags -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#080a10">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Arena Counter">
+  <meta name="application-name" content="Arena Counter">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
 </head>
 <body>
 
@@ -22,6 +33,7 @@
         <span>LIVE</span>
       </div>
       <h1 class="brand-title">ARENA<span>COUNTER</span></h1>
+      <div class="pwa-offline-badge" id="pwa-offline-badge" aria-live="polite"></div>
     </div>
 
     <!-- Match Target & Stopwatch Controls -->
@@ -106,6 +118,16 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
         </svg>
+      </button>
+
+      <!-- Install PWA App (Visible when installable) -->
+      <button class="action-btn pwa-install-btn hidden" id="pwa-install-btn" title="Install Arena Counter App" aria-label="Install App">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span class="btn-text">INSTALL</span>
       </button>
 
       <!-- Secondary Actions Group (Direct on desktop, popover dropdown on mobile) -->
@@ -460,10 +482,23 @@
     </div>
   </div>
 
+  <!-- PWA Update Notification Toast -->
+  <div class="pwa-update-toast" id="pwa-update-toast" role="alert">
+    <div class="pwa-toast-content">
+      <div class="pwa-toast-icon">⚡</div>
+      <div class="pwa-toast-text">
+        <span class="pwa-toast-title">Update Available</span>
+        <span class="pwa-toast-desc">A new version of Arena Counter is ready.</span>
+      </div>
+    </div>
+    <button class="pwa-update-btn" id="pwa-update-btn">UPDATE NOW</button>
+  </div>
+
   <!-- Scripts -->
   <script src="audio.js"></script>
   <script src="confetti.js"></script>
   <script src="app.js"></script>
   <script src="penalty-game.js"></script>
+  <script src="pwa.js"></script>
 </body>
 </html>
