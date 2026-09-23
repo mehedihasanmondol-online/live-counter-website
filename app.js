@@ -587,8 +587,8 @@
       randomGoalBtn.classList.add('is-shuffling');
       const titleEl = randomGoalBtn.querySelector('.random-title');
       const subEl = randomGoalBtn.querySelector('.random-subtitle');
-      if (titleEl) titleEl.innerText = 'SHUFFLING...';
-      if (subEl) subEl.innerText = 'SLOT REELS ROLLING';
+      if (titleEl) titleEl.innerText = 'STRIKING...';
+      if (subEl) subEl.innerText = 'DECIDING GOLDEN GOAL';
     }
 
     // Determine winning player
@@ -720,7 +720,7 @@
 
       const miniCeleb = document.createElement('div');
       miniCeleb.className = 'card-mini-celebration';
-      miniCeleb.innerHTML = '<span class="mini-celeb-sparkle">✨</span><span class="mini-celeb-text">GOAL +1</span>';
+      miniCeleb.innerHTML = '<span class="mini-celeb-sparkle">⭐</span><span class="mini-celeb-text">GOLDEN GOAL +1</span>';
       winCard.appendChild(miniCeleb);
 
       setTimeout(() => {
@@ -783,8 +783,8 @@
         randomGoalBtn.classList.remove('is-shuffling');
         const titleEl = randomGoalBtn.querySelector('.random-title');
         const subEl = randomGoalBtn.querySelector('.random-subtitle');
-        if (titleEl) titleEl.innerText = 'RANDOM GOAL';
-        if (subEl) subEl.innerText = 'LUCKY SHUFFLE • +1 GOAL';
+        if (titleEl) titleEl.innerText = 'GOLDEN GOAL';
+        if (subEl) subEl.innerText = 'INSTANT STRIKE • +1 GOAL';
       }
 
       isRandomShuffling = false;
