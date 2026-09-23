@@ -11,6 +11,16 @@
 (function () {
   'use strict';
 
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   class PenaltyShootoutGame {
     constructor() {
       this.canvas = null;
@@ -340,45 +350,210 @@
     }
 
     updateShooterSelector(players) {
-      const container = document.getElementById('penalty-shooter-pills');
-      if (!container || !players) return;
+      if (!players) return;
 
-      container.innerHTML = '';
-      players.forEach(p => {
-        const isCurrent = p.id === this.activePlayerId;
-        const pill = document.createElement('button');
-        pill.className = `shooter-pill ${isCurrent ? 'active' : ''}`;
-        pill.style.setProperty('--shooter-color', p.color);
-        pill.setAttribute('type', 'button');
-        pill.setAttribute('title', `${p.name} - Score: ${p.score} (Click to set as active striker)`);
-        pill.innerHTML = `
-          <div class="shooter-identity">
-            <div class="shooter-avatar-wrap">
-              <img src="${p.avatar}" alt="${p.name}" class="shooter-avatar" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'12\\' fill=\\'%23444\\'/></svg>'">
-              ${isCurrent ? '<span class="shooter-active-dot" title="Active Kicker">⚽</span>' : ''}
+      // 1. Populate side-by-side player columns backdrop (Homepage Style)
+      const backdrop = document.getElementById('penalty-players-backdrop');
+      if (backdrop) {
+        backdrop.innerHTML = '';
+        players.forEach((p, idx) => {
+          const isCurrent = p.id === this.activePlayerId;
+          const col = document.createElement('div');
+          col.className = `penalty-player-col ${isCurrent ? 'active' : ''}`;
+          col.style.setProperty('--player-color', p.color);
+          col.style.setProperty('--player-color-rgb', p.colorRgb || '0, 240, 255');
+          col.setAttribute('title', `${p.name} - Score: ${p.score}`);
+
+          // Default position: 50% 50% (Center of Image) or user-dragged position
+          const posX = p.penaltyPosX !== undefined ? p.penaltyPosX : 50;
+          const posY = p.penaltyPosY !== undefined ? p.penaltyPosY : 50;
+
+          col.innerHTML = `
+            <div class="penalty-col-bg">
+              <img src="${p.avatar}" alt="${p.name}" class="penalty-col-photo" onerror="this.style.display='none'">
+              <div class="penalty-col-gradient"></div>
+              <div class="penalty-col-glow"></div>
             </div>
-            <div class="shooter-info">
-              <div class="shooter-name-row">
-                <span class="shooter-name">${p.name}</span>
-                ${isCurrent ? '<span class="shooter-kicking-pill">KICKING ⚽</span>' : ''}
+            <div class="penalty-col-header" title="Click to set ${escapeHtml(p.name)} as active striker">
+              <div class="penalty-col-meta">
+                <div class="avatar-wrapper">
+                  <img src="${p.avatar}" alt="${p.name}" class="avatar-img" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'12\\' fill=\\'%23444\\'/></svg>'">
+                  ${isCurrent ? '<span class="shooter-active-dot" title="Active Kicker">⚽</span>' : ''}
+                </div>
+                <div class="player-details">
+                  <div class="player-title-row">
+                    <span class="player-name">${escapeHtml(p.name)}</span>
+                  </div>
+                  <span class="player-tag">${escapeHtml(p.tag || `PLAYER ${idx + 1}`)}</span>
+                </div>
               </div>
-              <span class="shooter-tag">${p.tag || 'PLAYER'}</span>
+              ${isCurrent ? '<div class="penalty-kicking-pill">KICKING ⚽</div>' : ''}
             </div>
-          </div>
-          <div class="shooter-score-box">
-            <span class="shooter-score-tag">SCORE</span>
-            <span class="shooter-score-big" id="shooter-score-num-${p.id}">${p.score}</span>
-          </div>
-        `;
-        pill.addEventListener('click', () => {
-          this.activePlayerId = p.id;
-          this.updateShooterSelector(players);
-          this.resetBall();
-        });
-        container.appendChild(pill);
-      });
 
-      // Update Big Broadcast TV Kicker Showcase Card
+            <!-- Big Draggable Counter Badge in Center of Player Image -->
+            <div class="penalty-score-draggable-badge ${p.id === this.lastScoredPlayerId ? 'pop-up' : ''}" 
+                 id="penalty-drag-${p.id}"
+                 style="left: ${posX}%; top: ${posY}%;"
+                 title="Drag to reposition counter anywhere on player image (Double click to re-center)">
+              <span class="penalty-score-num" id="penalty-score-num-${p.id}">${p.score}</span>
+            </div>
+          `;
+
+          // Header click switches striker
+          const headerEl = col.querySelector('.penalty-col-header');
+          if (headerEl) {
+            headerEl.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.activePlayerId = p.id;
+              this.updateShooterSelector(players);
+              this.resetBall();
+            });
+          }
+
+          // Draggable score badge logic (Just like homepage)
+          const dragBadge = col.querySelector('.penalty-score-draggable-badge');
+          if (dragBadge) {
+            let startX = 0;
+            let startY = 0;
+            let isDragging = false;
+            let badgeMoved = false;
+
+            dragBadge.addEventListener('pointerdown', (e) => {
+              e.stopPropagation();
+              startX = e.clientX;
+              startY = e.clientY;
+              isDragging = true;
+              badgeMoved = false;
+              try {
+                dragBadge.setPointerCapture(e.pointerId);
+              } catch (err) {}
+            });
+
+            dragBadge.addEventListener('pointermove', (e) => {
+              if (!isDragging) return;
+              const dx = e.clientX - startX;
+              const dy = e.clientY - startY;
+
+              if (Math.hypot(dx, dy) > 4) {
+                badgeMoved = true;
+                dragBadge.classList.add('is-dragging');
+
+                const colRect = col.getBoundingClientRect();
+                const relX = e.clientX - colRect.left;
+                const relY = e.clientY - colRect.top;
+
+                // Clamp within column bounds
+                const percentX = Math.max(18, Math.min(82, (relX / colRect.width) * 100));
+                const percentY = Math.max(22, Math.min(78, (relY / colRect.height) * 100));
+
+                dragBadge.style.left = `${percentX.toFixed(2)}%`;
+                dragBadge.style.top = `${percentY.toFixed(2)}%`;
+              }
+            });
+
+            const finishDrag = (e) => {
+              if (!isDragging) return;
+              isDragging = false;
+              dragBadge.classList.remove('is-dragging');
+
+              try {
+                if (e && e.pointerId !== undefined) {
+                  dragBadge.releasePointerCapture(e.pointerId);
+                }
+              } catch (err) {}
+
+              if (badgeMoved) {
+                p.penaltyPosX = parseFloat(dragBadge.style.left);
+                p.penaltyPosY = parseFloat(dragBadge.style.top);
+                if (window.arenaApp && window.arenaApp.saveState) {
+                  window.arenaApp.saveState();
+                }
+              } else {
+                // If tapped without dragging -> switch active striker to this player
+                if (this.activePlayerId !== p.id) {
+                  this.activePlayerId = p.id;
+                  this.updateShooterSelector(players);
+                  this.resetBall();
+                }
+              }
+            };
+
+            dragBadge.addEventListener('pointerup', finishDrag);
+            dragBadge.addEventListener('pointercancel', (e) => {
+              isDragging = false;
+              dragBadge.classList.remove('is-dragging');
+              try {
+                if (e && e.pointerId !== undefined) {
+                  dragBadge.releasePointerCapture(e.pointerId);
+                }
+              } catch (err) {}
+            });
+
+            // Double click to re-center
+            dragBadge.addEventListener('dblclick', (e) => {
+              e.stopPropagation();
+              p.penaltyPosX = 50;
+              p.penaltyPosY = 50;
+              dragBadge.style.left = '50%';
+              dragBadge.style.top = '50%';
+              if (window.arenaApp && window.arenaApp.saveState) {
+                window.arenaApp.saveState();
+              }
+            });
+          }
+
+          backdrop.appendChild(col);
+        });
+
+        // Add 3X Championship VS divider if exactly 2 players (like homepage)
+        if (players.length === 2) {
+          const vs = document.createElement('div');
+          vs.className = 'penalty-vs-divider';
+          vs.innerText = 'VS';
+          backdrop.appendChild(vs);
+        }
+      }
+
+      // 2. Fallback legacy container update if present
+      const container = document.getElementById('penalty-shooter-pills');
+      if (container) {
+        container.innerHTML = '';
+        players.forEach(p => {
+          const isCurrent = p.id === this.activePlayerId;
+          const pill = document.createElement('button');
+          pill.className = `shooter-pill ${isCurrent ? 'active' : ''}`;
+          pill.style.setProperty('--shooter-color', p.color);
+          pill.setAttribute('type', 'button');
+          pill.setAttribute('title', `${p.name} - Score: ${p.score} (Click to set as active striker)`);
+          pill.innerHTML = `
+            <div class="shooter-identity">
+              <div class="shooter-avatar-wrap">
+                <img src="${p.avatar}" alt="${p.name}" class="shooter-avatar" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'12\\' fill=\\'%23444\\'/></svg>'">
+                ${isCurrent ? '<span class="shooter-active-dot" title="Active Kicker">⚽</span>' : ''}
+              </div>
+              <div class="shooter-info">
+                <div class="shooter-name-row">
+                  <span class="shooter-name">${escapeHtml(p.name)}</span>
+                  ${isCurrent ? '<span class="shooter-kicking-pill">KICKING ⚽</span>' : ''}
+                </div>
+                <span class="shooter-tag">${escapeHtml(p.tag || 'PLAYER')}</span>
+              </div>
+            </div>
+            <div class="shooter-score-box">
+              <span class="shooter-score-tag">SCORE</span>
+              <span class="shooter-score-big" id="shooter-score-num-${p.id}">${p.score}</span>
+            </div>
+          `;
+          pill.addEventListener('click', () => {
+            this.activePlayerId = p.id;
+            this.updateShooterSelector(players);
+            this.resetBall();
+          });
+          container.appendChild(pill);
+        });
+      }
+
+      // 3. Update Big Broadcast TV Kicker Showcase Card
       const activeP = players.find(p => p.id === this.activePlayerId) || players[0];
       if (activeP) {
         const avatarEl = document.getElementById('kicker-avatar-big');
@@ -575,6 +750,23 @@
       if (this.ball.state !== 'ready') return;
 
       const pos = this.getCanvasPointerPos(e);
+
+      // If tapped in the upper player columns backdrop area, switch active striker
+      if (this.goal && pos.y < this.goal.top + 30) {
+        const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
+        if (players.length > 0) {
+          const colW = this.width / players.length;
+          const clickedIdx = Math.min(players.length - 1, Math.max(0, Math.floor(pos.x / colW)));
+          const targetPlayer = players[clickedIdx];
+          if (targetPlayer && targetPlayer.id !== this.activePlayerId) {
+            this.activePlayerId = targetPlayer.id;
+            this.updateShooterSelector(players);
+            this.resetBall();
+            return;
+          }
+        }
+      }
+
       const dx = pos.x - this.ball.x;
       const dy = pos.y - this.ball.y;
       const dist = Math.hypot(dx, dy);
@@ -1153,136 +1345,20 @@
 
     drawStadiumSky(ctx) {
       const w = this.width;
-      const h = this.height;
-      const horizon = this.goal.bottom - 36;
+      const horizon = this.goal.bottom - 20;
+
+      // The HTML backdrop (.penalty-players-backdrop) renders all player columns side-by-side
+      // with full-bleed photos, names at top, and scores at the bottom of each image (homepage style).
+      // Here on canvas, the sky remains transparent so the player columns show through cleanly.
 
       const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
-      // Current active kicker who is shooting right now
-      const activeP = players.find(p => p.id === this.activePlayerId) || players[0] || { id: 'p1', name: 'Shooter', color: '#00f0ff' };
-      const activeImg = this.playerImages[activeP.id];
+      const activeP = players.find(p => p.id === this.activePlayerId) || players[0] || { name: 'Player', color: '#00f0ff' };
       const themeColor = activeP.color || '#00f0ff';
 
-      // 1. Dark night arena gradient sky
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, horizon);
-      skyGrad.addColorStop(0, '#04060c');
-      skyGrad.addColorStop(0.4, '#090e1a');
-      skyGrad.addColorStop(1, '#0e1628');
-      ctx.fillStyle = skyGrad;
-      ctx.fillRect(0, 0, w, horizon);
+      // Cheering crowd silhouettes along the pitch horizon line
+      this.drawCrowdSilhouettes(ctx, 0, horizon - 16, w, 16, themeColor);
 
-      const standTopY = 25;
-      const standHeight = horizon - standTopY - 22;
-
-      // ==========================================
-      // 2. LEFT GRANDSTAND: Active Kicker's Image
-      // ==========================================
-      const leftStandW = Math.max(120, this.goal.left - 14);
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, standTopY, leftStandW, standHeight);
-      ctx.clip();
-
-      if (activeImg && activeImg.complete && activeImg.naturalWidth > 0) {
-        // Draw active kicker image covering left grandstand
-        ctx.drawImage(activeImg, 0, standTopY, leftStandW, standHeight);
-      } else {
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(0, standTopY, leftStandW, standHeight);
-      }
-
-      // Stadium vignette & team lighting overlay in active kicker's color
-      const leftTint = ctx.createLinearGradient(0, standTopY, leftStandW, standTopY + standHeight);
-      leftTint.addColorStop(0, 'rgba(4, 8, 16, 0.45)');
-      leftTint.addColorStop(0.6, `${themeColor}38`);
-      leftTint.addColorStop(1, 'rgba(4, 6, 12, 0.88)');
-      ctx.fillStyle = leftTint;
-      ctx.fillRect(0, standTopY, leftStandW, standHeight);
-
-      // Celebration Flash if active player scored
-      if (this.lastScoredPlayerId === activeP.id && this.celebrationGlowTimer > 0) {
-        ctx.fillStyle = `${themeColor}88`;
-        ctx.fillRect(0, standTopY, leftStandW, standHeight);
-      }
-
-      // Grandstand Upper Header Sign
-      ctx.fillStyle = 'rgba(8, 14, 28, 0.88)';
-      ctx.fillRect(0, standTopY, leftStandW, 20);
-      ctx.fillStyle = themeColor;
-      ctx.font = 'bold 10px Outfit, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`🚩 ${activeP.name.toUpperCase()} STAND (NORTH) 🚩`, leftStandW / 2, standTopY + 14);
-
-      // Cheering Crowd silhouettes & flags at railing
-      this.drawCrowdSilhouettes(ctx, 0, standTopY + standHeight - 24, leftStandW, 24, themeColor);
-
-      ctx.restore();
-
-      // ==========================================
-      // 3. RIGHT GRANDSTAND: Active Kicker's Image
-      // ==========================================
-      const rightStandX = this.goal.right + 14;
-      const rightStandW = w - rightStandX;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(rightStandX, standTopY, rightStandW, standHeight);
-      ctx.clip();
-
-      if (activeImg && activeImg.complete && activeImg.naturalWidth > 0) {
-        // Draw active kicker image covering right grandstand
-        ctx.drawImage(activeImg, rightStandX, standTopY, rightStandW, standHeight);
-      } else {
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(rightStandX, standTopY, rightStandW, standHeight);
-      }
-
-      // Stadium vignette & team lighting overlay in active kicker's color
-      const rightTint = ctx.createLinearGradient(rightStandX, standTopY, rightStandX + rightStandW, standTopY + standHeight);
-      rightTint.addColorStop(0, 'rgba(4, 8, 16, 0.45)');
-      rightTint.addColorStop(0.6, `${themeColor}38`);
-      rightTint.addColorStop(1, 'rgba(4, 6, 12, 0.88)');
-      ctx.fillStyle = rightTint;
-      ctx.fillRect(rightStandX, standTopY, rightStandW, standHeight);
-
-      // Celebration Flash if active player scored
-      if (this.lastScoredPlayerId === activeP.id && this.celebrationGlowTimer > 0) {
-        ctx.fillStyle = `${themeColor}88`;
-        ctx.fillRect(rightStandX, standTopY, rightStandW, standHeight);
-      }
-
-      // Grandstand Upper Header Sign
-      ctx.fillStyle = 'rgba(8, 14, 28, 0.88)';
-      ctx.fillRect(rightStandX, standTopY, rightStandW, 20);
-      ctx.fillStyle = themeColor;
-      ctx.font = 'bold 10px Outfit, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`🚩 ${activeP.name.toUpperCase()} STAND (SOUTH) 🚩`, rightStandX + rightStandW / 2, standTopY + 14);
-
-      // Cheering Crowd silhouettes & flags at railing
-      this.drawCrowdSilhouettes(ctx, rightStandX, standTopY + standHeight - 24, rightStandW, 24, themeColor);
-
-      ctx.restore();
-
-      // ==========================================
-      // 4. CENTER GRANDSTAND: Active Kicker Spotlight Tier
-      // ==========================================
-      const centerStandX = leftStandW;
-      const centerStandW = rightStandX - centerStandX;
-
-      ctx.fillStyle = '#080c16';
-      ctx.fillRect(centerStandX, standTopY, centerStandW, standHeight);
-
-      // Seating tiers
-      for (let row = 0; row < 5; row++) {
-        const ry = standTopY + row * 16;
-        ctx.fillStyle = row % 2 === 0 ? '#111827' : '#0c1220';
-        ctx.fillRect(centerStandX, ry, centerStandW, 15);
-      }
-
-      // ==========================================
-      // 5. Electronic LED Pitchside Ribbon Board (Animated)
-      // ==========================================
+      // Electronic LED Pitchside Ribbon Board (Animated)
       const ledY = horizon - 22;
       const ledH = 22;
 
@@ -1292,7 +1368,7 @@
       ctx.lineWidth = 1;
       ctx.strokeRect(0, ledY, w, ledH);
 
-      // Scrolling LED text ticker focused on the active shooter
+      // Scrolling LED text ticker
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, ledY, w, ledH);
@@ -1300,7 +1376,7 @@
 
       ctx.font = 'bold 11px Bebas Neue, Outfit, sans-serif';
       ctx.fillStyle = themeColor;
-      const tickerText = `⚡ NOW KICKING: ${activeP.name.toUpperCase()} (${activeP.tag || 'PRO'}) ⚡ ARENA SCORE: ${activeP.score} ⚡ SWIPE OR TAP TO SHOOT! ⚡ ⚽ LIVE BROADCAST ⚡`;
+      const tickerText = `⚡ NOW KICKING: ${activeP.name.toUpperCase()} ⚡ ARENA SCORE: ${activeP.score} ⚡ SWIPE OR TAP TO SHOOT! ⚡ ⚽ LIVE ARENA ⚡`;
       const textWidth = ctx.measureText(tickerText).width;
 
       const offset = (this.ledScrollOffset % textWidth);
@@ -1309,13 +1385,9 @@
       ctx.fillText(tickerText, -offset + textWidth * 2, ledY + 15);
       ctx.restore();
 
-      // ==========================================
-      // 6. Floodlight Towers with Atmosphere Flares
-      // ==========================================
-      this.drawFloodlight(ctx, leftStandW * 0.4, standTopY - 10);
-      this.drawFloodlight(ctx, rightStandX + rightStandW * 0.6, standTopY - 10);
-      this.drawFloodlight(ctx, w * 0.05, standTopY - 10);
-      this.drawFloodlight(ctx, w * 0.95, standTopY - 10);
+      // Subtle atmospheric floodlight flares
+      this.drawFloodlight(ctx, w * 0.08, 15);
+      this.drawFloodlight(ctx, w * 0.92, 15);
     }
 
     drawCrowdSilhouettes(ctx, x, y, width, height, flagColor) {

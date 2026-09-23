@@ -4,7 +4,7 @@
  * Provides 100% offline access, instant loading, and asset caching
  */
 
-const CACHE_NAME = 'arena-counter-v1.0.2';
+const CACHE_NAME = 'arena-counter-v1.0.4';
 const FONT_CACHE_NAME = 'arena-counter-fonts-v1';
 
 // Essential static resources for offline execution

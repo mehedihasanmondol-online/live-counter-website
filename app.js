@@ -146,6 +146,8 @@
         players.forEach(p => {
           if (p.posX === undefined || isNaN(p.posX)) p.posX = 50;
           if (p.posY === undefined || isNaN(p.posY)) p.posY = 50;
+          if (p.penaltyPosX === undefined || isNaN(p.penaltyPosX)) p.penaltyPosX = 50;
+          if (p.penaltyPosY === undefined || isNaN(p.penaltyPosY)) p.penaltyPosY = 50;
         });
       } else {
         players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
@@ -1521,6 +1523,7 @@
   window.arenaApp = {
     getPlayers: () => players,
     modifyScore: (playerId, delta, x, y) => modifyScore(playerId, delta, x, y),
+    saveState: () => saveState(),
     getTargetScore: () => targetScore,
     getInitialScore: () => initialScore,
     setInitialScore: (val, update) => setInitialScore(val, update),
