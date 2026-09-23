@@ -1171,8 +1171,8 @@
         return;
       }
 
-      // G -> Random Mystery Goal Shuffle
-      if ((e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.altKey) {
+      // Space or G -> Golden Goal Strike
+      if ((e.code === 'Space' || e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.altKey) {
         startRandomGoalShuffle();
         e.preventDefault();
         return;
@@ -1196,8 +1196,8 @@
         return;
       }
 
-      // Space -> Start/Stop Timer
-      if (e.code === 'Space') {
+      // T -> Start/Stop Timer
+      if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.altKey) {
         toggleTimer();
         e.preventDefault();
         return;
