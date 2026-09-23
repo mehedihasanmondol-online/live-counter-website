@@ -593,14 +593,14 @@ class SoundEngine {
     }
   }
 
-  // Casino Win Bell Chimes (Ascending bells: C6, E6, G6, C7)
-  playCasinoChime() {
+  // Casino Win Bell Chimes (Ascending bells: C6, E6, G6, C7) with dynamic streak pitch
+  playCasinoChime(pitchMultiplier = 1) {
     if (this.muted) return;
     this.initAudioContext();
     if (!this.ctx) return;
 
     try {
-      const notes = [1046.50, 1318.51, 1567.98, 2093.00];
+      const notes = [1046.50, 1318.51, 1567.98, 2093.00].map(f => f * pitchMultiplier);
       const now = this.ctx.currentTime;
 
       notes.forEach((freq, idx) => {

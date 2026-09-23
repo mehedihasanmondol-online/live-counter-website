@@ -623,7 +623,109 @@
 
   /* ==========================================================================
      Random Mystery Goal Arena Slot Reel Engine (No modal - 100% on grid!)
+     Dynamic Stochastic Momentum & Consecutive Streak Engine
+     Strictly +1 goal per strike. Organic randomness produces realistic
+     multi-goal runs (streaks of 2, 3, 4, 5+ in a row) without serial patterns.
      ========================================================================== */
+
+  let goldenGoalLastWinnerId = null;
+  let goldenGoalStreak = 0;
+
+  function pickGoldenGoalWinner(playerList) {
+    if (!playerList || playerList.length === 0) return null;
+    if (playerList.length === 1) {
+      goldenGoalLastWinnerId = playerList[0].id;
+      goldenGoalStreak = (goldenGoalStreak || 0) + 1;
+      return { player: playerList[0], streak: goldenGoalStreak };
+    }
+
+    // 2-Player Match (the most common esports / stream battle, e.g., Messi vs Ronaldo)
+    if (playerList.length === 2) {
+      const p0 = playerList[0];
+      const p1 = playerList[1];
+
+      // Check if previous winner is still in the active match
+      let winner = null;
+      if (goldenGoalLastWinnerId !== p0.id && goldenGoalLastWinnerId !== p1.id) {
+        // Fresh start: pure 50/50 stochastic choice
+        winner = Math.random() < 0.5 ? p0 : p1;
+        goldenGoalStreak = 1;
+        goldenGoalLastWinnerId = winner.id;
+        return { player: winner, streak: goldenGoalStreak };
+      }
+
+      // One player is currently holding momentum
+      const streakPlayer = (goldenGoalLastWinnerId === p0.id) ? p0 : p1;
+      const otherPlayer = (streakPlayer.id === p0.id) ? p1 : p0;
+
+      // Base momentum: in-form player has high persistence (~70-74%)
+      // With slight organic random jitter so every run feels alive and non-formulaic
+      let streakProbability = 0.71 + (Math.random() * 0.06 - 0.03);
+
+      // Natural decay after extended runs to prevent infinite monopolization
+      if (goldenGoalStreak >= 4) {
+        streakProbability -= 0.16; // drops to ~55%
+      }
+      if (goldenGoalStreak >= 6) {
+        streakProbability -= 0.25; // drops to ~30-35%
+      }
+
+      // Underdog comeback surge: if streak player leads by 5+ goals, trailing player gets a boost
+      const scoreDiff = streakPlayer.score - otherPlayer.score;
+      if (scoreDiff >= 5) {
+        streakProbability -= 0.20;
+      }
+
+      // Clamp between 0.25 and 0.82
+      streakProbability = Math.max(0.25, Math.min(0.82, streakProbability));
+
+      // Pure stochastic evaluation
+      if (Math.random() < streakProbability) {
+        // Streak continues!
+        goldenGoalStreak++;
+        winner = streakPlayer;
+      } else {
+        // Momentum shifts to the opponent!
+        winner = otherPlayer;
+        goldenGoalLastWinnerId = winner.id;
+        goldenGoalStreak = 1;
+      }
+
+      return { player: winner, streak: goldenGoalStreak };
+    }
+
+    // 3+ Players Match
+    let winner = null;
+    const currentWinnerIndex = playerList.findIndex(p => p.id === goldenGoalLastWinnerId);
+    if (currentWinnerIndex === -1) {
+      // Pick uniformly
+      const randIdx = Math.floor(Math.random() * playerList.length);
+      winner = playerList[randIdx];
+      goldenGoalStreak = 1;
+      goldenGoalLastWinnerId = winner.id;
+      return { player: winner, streak: goldenGoalStreak };
+    }
+
+    // Current winner has momentum
+    let pKeep = 0.58 + (Math.random() * 0.08 - 0.04);
+    if (goldenGoalStreak >= 3) pKeep -= 0.15;
+    if (goldenGoalStreak >= 5) pKeep -= 0.25;
+    pKeep = Math.max(0.20, Math.min(0.70, pKeep));
+
+    if (Math.random() < pKeep) {
+      goldenGoalStreak++;
+      winner = playerList[currentWinnerIndex];
+    } else {
+      // Pick among other players
+      const otherPlayers = playerList.filter(p => p.id !== goldenGoalLastWinnerId);
+      const chosenOther = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+      winner = chosenOther;
+      goldenGoalLastWinnerId = winner.id;
+      goldenGoalStreak = 1;
+    }
+
+    return { player: winner, streak: goldenGoalStreak };
+  }
 
   function startRandomGoalShuffle() {
     if (isRandomShuffling) return;
@@ -649,9 +751,14 @@
       if (subEl) subEl.innerText = 'DECIDING GOLDEN GOAL';
     }
 
-    // Determine winning player
-    const winnerIndex = Math.floor(Math.random() * players.length);
-    const winnerPlayer = players[winnerIndex];
+    // Determine winning player & streak via genuine stochastic momentum engine
+    const selection = pickGoldenGoalWinner(players);
+    if (!selection) {
+      isRandomShuffling = false;
+      return;
+    }
+    const winnerPlayer = selection.player;
+    const currentStreak = selection.streak;
 
     // Play flutter card-riffle background sound
     if (window.soundEngine && window.soundEngine.playShuffleFlutter) {
@@ -739,11 +846,11 @@
 
     // At 2.45 seconds: Braking finishes! STOP reels and crown winner!
     setTimeout(() => {
-      finishShuffle(winnerPlayer);
+      finishShuffle(winnerPlayer, currentStreak);
     }, 2450);
   }
 
-  function finishShuffle(winnerPlayer) {
+  function finishShuffle(winnerPlayer, streak = 1) {
     // Stop clunk sound
     if (window.soundEngine && window.soundEngine.playSlotLock) {
       window.soundEngine.playSlotLock();
@@ -771,14 +878,23 @@
       winCard.classList.add('shuffle-winner-card');
     }
 
-    // Subtle congratulation badge directly on the winning card ("kintu halka")
+    // Congratulation badge directly on the winning card with streak info
     if (winCard) {
       const existingBadge = winCard.querySelector('.card-mini-celebration');
       if (existingBadge) existingBadge.remove();
 
       const miniCeleb = document.createElement('div');
       miniCeleb.className = 'card-mini-celebration';
-      miniCeleb.innerHTML = '<span class="mini-celeb-sparkle">⭐</span><span class="mini-celeb-text">GOLDEN GOAL +1</span>';
+      
+      let badgeHtml = '<span class="mini-celeb-sparkle">⭐</span><span class="mini-celeb-text">GOLDEN GOAL +1</span>';
+      if (streak === 2) {
+        badgeHtml = '<span class="mini-celeb-sparkle">⚡</span><span class="mini-celeb-text">2 IN A ROW! +1</span>';
+      } else if (streak === 3) {
+        badgeHtml = '<span class="mini-celeb-sparkle">🔥</span><span class="mini-celeb-text">3-GOAL STREAK! +1</span>';
+      } else if (streak >= 4) {
+        badgeHtml = `<span class="mini-celeb-sparkle">🚀</span><span class="mini-celeb-text">${streak}-GOAL RUN! +1</span>`;
+      }
+      miniCeleb.innerHTML = badgeHtml;
       winCard.appendChild(miniCeleb);
 
       setTimeout(() => {
@@ -789,6 +905,21 @@
     // --- DISPLAY PLAYER NAME BIG IN SCREEN CENTER ("kintu center hobe") ---
     if (screenMarkedBanner && screenMarkedNameText) {
       screenMarkedNameText.innerText = winnerPlayer.name.toUpperCase();
+      
+      // Update dynamic streak tag
+      const bannerTag = screenMarkedBanner.querySelector('.marked-name-tag');
+      if (bannerTag) {
+        if (streak === 1) {
+          bannerTag.innerText = '⭐ GOLDEN GOAL ⭐';
+        } else if (streak === 2) {
+          bannerTag.innerText = '⚡ 2 IN A ROW! (+1) ⚡';
+        } else if (streak === 3) {
+          bannerTag.innerText = '🔥 3-GOAL STREAK! (+1) 🔥';
+        } else if (streak >= 4) {
+          bannerTag.innerText = `🚀 ${streak}-GOAL RUN! ON FIRE! (+1) 🚀`;
+        }
+      }
+
       screenMarkedBanner.classList.remove('show');
       void screenMarkedBanner.offsetWidth; // force reflow
       screenMarkedBanner.classList.add('show');
@@ -818,14 +949,15 @@
       scoreText.classList.add('casino-zoom-grow');
     }
 
-    // At peak zoom (320ms), update score +1 smoothly (skipping immediate arena re-render so zoom finishes smoothly)
+    // At peak zoom (320ms), update score STRICTLY +1 smoothly (skipping immediate arena re-render so zoom finishes smoothly)
     setTimeout(() => {
       modifyScore(winnerPlayer.id, 1, null, null, true);
     }, 320);
 
-    // Subtle celebration chime (gentle melodic chime, no loud crowd roar or full-screen fireworks)
+    // Subtle celebration chime with dynamic pitch reflecting streak
     if (window.soundEngine && window.soundEngine.playCasinoChime) {
-      window.soundEngine.playCasinoChime();
+      const pitchMult = streak >= 4 ? 1.25 : (streak >= 2 ? 1.12 : 1.0);
+      window.soundEngine.playCasinoChime(pitchMult);
     }
 
     // Clean up zoom classes, refresh arena state, and restore button state after animation settles
@@ -1181,6 +1313,8 @@
     resetBtn.addEventListener('click', () => {
       if (confirm(`Are you sure you want to reset all scores to ${initialScore}?`)) {
         players.forEach(p => p.score = initialScore);
+        goldenGoalLastWinnerId = null;
+        goldenGoalStreak = 0;
         undoStack = [];
         saveState();
         if (window.soundEngine) window.soundEngine.playReset();
@@ -1227,6 +1361,8 @@
     // Winner modal buttons
     rematchBtn.addEventListener('click', () => {
       players.forEach(p => p.score = initialScore);
+      goldenGoalLastWinnerId = null;
+      goldenGoalStreak = 0;
       undoStack = [];
       saveState();
       winnerModal.classList.remove('show');
