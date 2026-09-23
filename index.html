@@ -319,86 +319,117 @@
 
   <!-- Penalty Shootout Stadium Modal -->
   <div class="modal-backdrop penalty-modal-backdrop" id="penalty-modal">
-    <div class="penalty-modal-dialog">
-      <!-- Top Stadium Bar -->
-      <div class="penalty-arena-header">
-        <div class="penalty-header-left">
+    <div class="penalty-modal-outer-layout">
+      <!-- Left Outer Flank Widget: Stadium Info & Quick Stats HUD (In marked empty space on the left) -->
+      <aside class="penalty-flank-widget left" id="penalty-side-left">
+        <div class="flank-widget-header">
           <div class="penalty-badge">
             <span class="penalty-dot"></span>
             <span>STADIUM ARENA</span>
           </div>
-          <h2 class="penalty-arena-title">PENALTY<span>SHOOTOUT</span></h2>
-        </div>
-
-        <!-- Active Shooter Switcher -->
-        <div class="penalty-shooter-select-group">
-          <span class="shooter-label">SHOOTER:</span>
-          <div class="penalty-shooter-pills" id="penalty-shooter-pills">
-            <!-- Dynamic player pills injected via penalty-game.js -->
-          </div>
-          <label class="auto-alt-toggle" title="Automatically alternate turns between players after each kick">
-            <input type="checkbox" id="penalty-auto-alternate" checked>
-            <span>Alternate Turns</span>
-          </label>
+          <h3 class="flank-arena-title">PENALTY<span>SHOOTOUT</span></h3>
+          <span class="flank-subtitle">MATCH STATISTICS</span>
         </div>
 
         <!-- Quick Stats HUD -->
-        <div class="penalty-stats-hud">
-          <div class="hud-stat-pill" title="Total Goals Scored">
+        <div class="flank-stats-grid">
+          <div class="flank-stat-pill" title="Total Goals Scored">
             <span class="stat-lbl">GOALS</span>
             <span class="stat-val highlight" id="penalty-stat-goals">0</span>
           </div>
-          <div class="hud-stat-pill" title="Total Shots Taken">
+          <div class="flank-stat-pill" title="Total Shots Taken">
             <span class="stat-lbl">SHOTS</span>
             <span class="stat-val" id="penalty-stat-shots">0</span>
           </div>
-          <div class="hud-stat-pill" title="Goalkeeper Saves">
+          <div class="flank-stat-pill" title="Goalkeeper Saves">
             <span class="stat-lbl">SAVED</span>
             <span class="stat-val" id="penalty-stat-saves">0</span>
           </div>
-          <div class="hud-stat-pill" title="Current Goal Streak">
+          <div class="flank-stat-pill" title="Current Goal Streak">
             <span class="stat-lbl">STREAK</span>
             <span class="stat-val streak" id="penalty-stat-streak">🔥 0</span>
           </div>
-          <div class="hud-stat-pill" title="Shooting Accuracy Percentage">
+          <div class="flank-stat-pill full-width" title="Shooting Accuracy Percentage">
             <span class="stat-lbl">ACCURACY</span>
             <span class="stat-val" id="penalty-stat-acc">0%</span>
           </div>
         </div>
 
-        <!-- Header Actions -->
-        <div class="penalty-header-actions">
-          <button class="action-btn" id="penalty-sound-btn" title="Toggle Shootout Sound Effects">
+        <div class="flank-tip-card">
+          <div class="tip-icon">⚽</div>
+          <div class="tip-text">
+            <span class="tip-heading">AIM & SHOOT</span>
+            <span class="tip-desc">Drag the ball to set aim & power, then release to shoot!</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center Stadium Dialog Window -->
+      <div class="penalty-modal-dialog">
+        <!-- Top Stadium Bar - Dedicated Match Scoreboard (Marked Area) -->
+        <div class="penalty-arena-header">
+          <div class="penalty-scoreboard-row" id="penalty-shooter-pills">
+            <!-- Dynamic player scoreboard cards injected via penalty-game.js with massive score numbers -->
+          </div>
+        </div>
+
+        <!-- Main Interactive Stadium Field -->
+        <div class="penalty-stage-wrap">
+          <canvas id="penalty-canvas"></canvas>
+
+          <!-- Rich Celebratory Outcome Banner (GOAL / SAVED / WOODWORK / MISSED) -->
+          <div class="penalty-outcome-banner" id="penalty-outcome-banner">
+            <div class="outcome-avatar-wrap">
+              <img src="assets/messi.jpg" alt="Shooter" class="outcome-avatar-img" id="outcome-avatar-img">
+              <div class="outcome-avatar-ring"></div>
+            </div>
+            <div class="outcome-main-title" id="outcome-main-title">GOAAAL! ⚽🔥</div>
+            <div class="outcome-player-credit" id="outcome-player-credit">SCORED BY LIONEL MESSI</div>
+            <div class="outcome-score-update" id="outcome-score-update">ARENA SCORE: 0 ➔ 1 (+1)</div>
+            <div class="outcome-streak-badge" id="outcome-streak-badge"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Outer Flank Widget: Actions & Controls (In marked empty space on the right) -->
+      <aside class="penalty-flank-widget right" id="penalty-side-right">
+        <div class="flank-widget-header">
+          <div class="flank-header-row">
+            <span class="flank-subtitle">ARENA CONTROLS</span>
+            <button class="action-btn icon-only flank-close-btn" id="close-penalty-btn" title="Close Shootout Arena (Esc / P)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="flank-actions-controls">
+          <button class="action-btn flank-control-btn" id="penalty-sound-btn" title="Toggle Shootout Sound Effects">
             🔊 Sound: ON
           </button>
-          <button class="action-btn" id="penalty-reset-stats-btn" title="Reset Shootout Statistics">
+          <button class="action-btn flank-control-btn" id="penalty-reset-stats-btn" title="Reset Shootout Statistics">
             RESET STATS
           </button>
-          <button class="action-btn icon-only close-btn" id="close-penalty-btn" title="Close Shootout Arena">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
+          <label class="auto-alt-toggle flank-control-toggle" title="Automatically alternate turns between players after each kick">
+            <input type="checkbox" id="penalty-auto-alternate" checked>
+            <span>Alternate Turns</span>
+          </label>
         </div>
-      </div>
 
-      <!-- Main Interactive Stadium Field -->
-      <div class="penalty-stage-wrap">
-        <canvas id="penalty-canvas"></canvas>
-
-        <!-- Rich Celebratory Outcome Banner (GOAL / SAVED / WOODWORK / MISSED) -->
-        <div class="penalty-outcome-banner" id="penalty-outcome-banner">
-          <div class="outcome-avatar-wrap">
-            <img src="assets/messi.jpg" alt="Shooter" class="outcome-avatar-img" id="outcome-avatar-img">
-            <div class="outcome-avatar-ring"></div>
+        <div class="flank-shortcuts-info">
+          <span class="flank-info-label">SHORTCUTS</span>
+          <div class="flank-key-row">
+            <span>Close Arena</span>
+            <kbd class="key-kbd">Esc / P</kbd>
           </div>
-          <div class="outcome-main-title" id="outcome-main-title">GOAAAL! ⚽🔥</div>
-          <div class="outcome-player-credit" id="outcome-player-credit">SCORED BY LIONEL MESSI</div>
-          <div class="outcome-score-update" id="outcome-score-update">ARENA SCORE: 0 ➔ 1 (+1)</div>
-          <div class="outcome-streak-badge" id="outcome-streak-badge"></div>
+          <div class="flank-key-row">
+            <span>Golden Goal</span>
+            <kbd class="key-kbd">Space / G</kbd>
+          </div>
         </div>
-      </div>
+      </aside>
     </div>
   </div>
 

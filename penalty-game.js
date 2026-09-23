@@ -185,17 +185,19 @@
       // Close modal ONLY on deliberate backdrop click (both pointerdown AND click on backdrop itself)
       if (this.modalEl) {
         this.modalEl.addEventListener('pointerdown', (e) => {
-          this.backdropPointerDown = (e.target === this.modalEl);
+          this.backdropPointerDown = (e.target === this.modalEl || (e.target.classList && e.target.classList.contains('penalty-modal-outer-layout')));
         });
 
         this.modalEl.addEventListener('click', (e) => {
           const wasBackdropStart = this.backdropPointerDown;
           this.backdropPointerDown = false;
 
+          const isBackdropTarget = (e.target === this.modalEl || (e.target.classList && e.target.classList.contains('penalty-modal-outer-layout')));
+
           // Never close modal on backdrop if a shot was just taken or currently in flight or dragging
           if (
             wasBackdropStart &&
-            e.target === this.modalEl &&
+            isBackdropTarget &&
             !this.ball.isDragging &&
             this.ball.state !== 'flying' &&
             Date.now() - this.lastKickTimestamp > 1500
@@ -255,6 +257,21 @@
           soundBtn.innerHTML = this.soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
         });
       }
+
+      // Prevent pointer events on flank widgets from triggering canvas shooting or backdrop close
+      const sideLeft = document.getElementById('penalty-side-left');
+      const sideRight = document.getElementById('penalty-side-right');
+      [sideLeft, sideRight].forEach(el => {
+        if (el) {
+          el.addEventListener('pointerdown', (e) => {
+            this.backdropPointerDown = false;
+            e.stopPropagation();
+          });
+          el.addEventListener('mousedown', (e) => e.stopPropagation());
+          el.addEventListener('click', (e) => e.stopPropagation());
+          el.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+        }
+      });
 
       // Canvas Pointer / Touch interactions
       this.canvas.addEventListener('pointerdown', this.handlePointerDown);
@@ -332,11 +349,25 @@
         const pill = document.createElement('button');
         pill.className = `shooter-pill ${isCurrent ? 'active' : ''}`;
         pill.style.setProperty('--shooter-color', p.color);
+        pill.setAttribute('type', 'button');
+        pill.setAttribute('title', `${p.name} - Score: ${p.score} (Click to set as active striker)`);
         pill.innerHTML = `
-          <img src="${p.avatar}" alt="${p.name}" class="shooter-avatar" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'12\\' fill=\\'%23444\\'/></svg>'">
-          <div class="shooter-info">
-            <span class="shooter-name">${p.name}</span>
-            <span class="shooter-score">SCORE: ${p.score}</span>
+          <div class="shooter-identity">
+            <div class="shooter-avatar-wrap">
+              <img src="${p.avatar}" alt="${p.name}" class="shooter-avatar" onerror="this.src='data:image/svg+xml,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\'><circle cx=\\'12\\' cy=\\'12\\' r=\\'12\\' fill=\\'%23444\\'/></svg>'">
+              ${isCurrent ? '<span class="shooter-active-dot" title="Active Kicker">⚽</span>' : ''}
+            </div>
+            <div class="shooter-info">
+              <div class="shooter-name-row">
+                <span class="shooter-name">${p.name}</span>
+                ${isCurrent ? '<span class="shooter-kicking-pill">KICKING ⚽</span>' : ''}
+              </div>
+              <span class="shooter-tag">${p.tag || 'PLAYER'}</span>
+            </div>
+          </div>
+          <div class="shooter-score-box">
+            <span class="shooter-score-tag">SCORE</span>
+            <span class="shooter-score-big" id="shooter-score-num-${p.id}">${p.score}</span>
           </div>
         `;
         pill.addEventListener('click', () => {

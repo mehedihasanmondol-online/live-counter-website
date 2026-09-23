@@ -1912,9 +1912,9 @@ body.stream-mode .random-goal-floating-btn {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(4, 6, 14, 0.88);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  background: rgba(4, 6, 14, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   z-index: 1000;
   display: none;
   align-items: center;
@@ -1922,6 +1922,8 @@ body.stream-mode .random-goal-floating-btn {
   padding: 16px;
   opacity: 0;
   transition: opacity var(--transition-normal);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .penalty-modal-backdrop.show {
@@ -1929,12 +1931,25 @@ body.stream-mode .random-goal-floating-btn {
   opacity: 1;
 }
 
-/* Modal Dialog Window */
-.penalty-modal-dialog {
+/* Outer layout holding Left Flank (Extra Info), Center Stadium, and Right Flank (Controls) */
+.penalty-modal-outer-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
   width: 100%;
+  max-width: 1680px;
+  height: 94vh;
+  max-height: 890px;
+  position: relative;
+  margin: auto;
+}
+
+/* Modal Dialog Window (Center Stadium Arena) */
+.penalty-modal-dialog {
+  flex: 1 1 1140px;
   max-width: 1140px;
-  height: 92vh;
-  max-height: 880px;
+  height: 100%;
   background: #080c16;
   border: 1px solid rgba(0, 240, 255, 0.28);
   border-radius: 20px;
@@ -1945,38 +1960,250 @@ body.stream-mode .random-goal-floating-btn {
   position: relative;
 }
 
-/* Header Bar */
+/* ==========================================================================
+   Live Match Scoreboard Header (Marked Area - Giant Scores)
+   ========================================================================== */
 .penalty-arena-header {
-  min-height: 64px;
-  padding: 10px 20px;
-  background: rgba(12, 17, 30, 0.95);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 82px;
+  padding: 10px 24px;
+  background: linear-gradient(180deg, rgba(8, 12, 22, 0.98) 0%, rgba(12, 17, 32, 0.95) 100%);
+  border-bottom: 2px solid rgba(0, 240, 255, 0.25);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.penalty-scoreboard-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+/* Player Scoreboard Card / Pill */
+.shooter-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  z-index: 10;
+  gap: 16px;
+  padding: 8px 18px 8px 12px;
+  background: rgba(18, 26, 44, 0.75);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text-main);
+  position: relative;
+  min-width: 220px;
+  flex: 0 1 auto;
 }
 
-.penalty-header-left {
+.shooter-pill:hover {
+  background: rgba(26, 36, 60, 0.9);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.shooter-pill.active {
+  background: linear-gradient(135deg, rgba(0, 240, 255, 0.22) 0%, rgba(5, 255, 161, 0.15) 100%);
+  border-color: var(--shooter-color, var(--accent-cyan));
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.4), inset 0 0 14px rgba(0, 240, 255, 0.16);
+  transform: translateY(-2px) scale(1.02);
+}
+
+/* Left side of pill: Avatar + Names */
+.shooter-identity {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.shooter-avatar-wrap {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+}
+
+.shooter-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2.5px solid var(--shooter-color, #ffffff);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
+}
+
+.shooter-active-dot {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 14px;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.8));
+  animation: pulseRotate 2s infinite ease-in-out;
+}
+
+.shooter-info {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 2px;
+}
+
+.shooter-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shooter-name {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.shooter-kicking-pill {
+  background: var(--accent-cyan);
+  color: #080a10;
+  font-family: var(--font-display);
+  font-size: 0.6rem;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.6px;
+  box-shadow: 0 0 10px var(--accent-cyan);
+  animation: kickerGlow 1.5s infinite alternate;
+}
+
+.shooter-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.6px;
+}
+
+/* Right side of pill: GIGANTIC SCORE NUMBER */
+.shooter-score-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  padding-left: 14px;
+  border-left: 1.5px solid rgba(255, 255, 255, 0.12);
+  min-width: 72px;
+}
+
+.shooter-score-tag {
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.shooter-score-big {
+  font-family: var(--font-score);
+  font-size: clamp(2.4rem, 4.2vw, 3.4rem);
+  font-weight: 900;
+  line-height: 0.92;
+  color: #ffffff;
+  letter-spacing: -1px;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.4);
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.shooter-pill.active .shooter-score-big {
+  color: var(--accent-gold);
+  text-shadow: 0 0 18px rgba(255, 215, 0, 0.8), 0 0 32px var(--shooter-color, rgba(0, 240, 255, 0.45));
+}
+
+@keyframes pulseRotate {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.15) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+
+@keyframes kickerGlow {
+  0% { box-shadow: 0 0 6px var(--accent-cyan); }
+  100% { box-shadow: 0 0 14px var(--accent-cyan), 0 0 20px var(--accent-cyan); }
+}
+
+/* ==========================================================================
+   Outer Flank Widgets (In the Marked Empty Space on Left & Right)
+   ========================================================================== */
+.penalty-flank-widget {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: rgba(10, 15, 28, 0.92);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  padding: 20px 18px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.75), 0 0 30px rgba(0, 240, 255, 0.12);
+  z-index: 20;
+  pointer-events: auto;
+  transition: all var(--transition-normal);
+}
+
+.penalty-flank-widget.left {
+  width: 240px;
+}
+
+.penalty-flank-widget.right {
+  width: 220px;
+}
+
+.flank-widget-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flank-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.flank-arena-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.flank-arena-title span {
+  color: var(--accent-cyan);
+  margin-left: 4px;
 }
 
 .penalty-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
   background: rgba(0, 240, 255, 0.12);
   border: 1px solid rgba(0, 240, 255, 0.3);
   border-radius: 12px;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   font-weight: 700;
   color: var(--accent-cyan);
   letter-spacing: 0.5px;
+  width: fit-content;
 }
 
 .penalty-dot {
@@ -1987,196 +2214,211 @@ body.stream-mode .random-goal-floating-btn {
   box-shadow: 0 0 8px var(--accent-cyan);
 }
 
-.penalty-arena-title {
-  font-family: var(--font-display);
-  font-size: 1.15rem;
-  font-weight: 900;
-  letter-spacing: 1px;
-  color: #ffffff;
-  margin: 0;
-}
-
-.penalty-arena-title span {
-  color: var(--accent-cyan);
-  margin-left: 4px;
-}
-
-/* Shooter Selection Group */
-.penalty-shooter-select-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  padding: 4px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.shooter-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--text-dim);
-  letter-spacing: 0.8px;
-}
-
-.penalty-shooter-pills {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.shooter-pill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
-  border-radius: 24px;
-  cursor: pointer;
-  transition: all var(--transition-normal);
-  color: var(--text-main);
-  position: relative;
-}
-
-.shooter-pill:hover {
-  background: rgba(255, 255, 255, 0.14);
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
-.shooter-pill.active {
-  background: linear-gradient(135deg, rgba(0, 240, 255, 0.22) 0%, rgba(5, 255, 161, 0.15) 100%);
-  border-color: var(--shooter-color, var(--accent-cyan));
-  box-shadow: 0 0 20px rgba(0, 240, 255, 0.4), inset 0 0 10px rgba(0, 240, 255, 0.2);
-  transform: translateY(-1px) scale(1.03);
-}
-
-.shooter-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid var(--shooter-color, #ffffff);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
-}
-
-.shooter-info {
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-
-.shooter-name {
-  font-family: var(--font-display);
-  font-size: 0.88rem;
+.flank-subtitle {
+  font-size: 0.68rem;
   font-weight: 800;
-  line-height: 1.1;
-  color: #ffffff;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  text-transform: uppercase;
 }
 
-.shooter-score {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: var(--accent-cyan);
-}
-
-.shooter-pill.active::after {
-  content: 'KICKER';
-  position: absolute;
-  top: -8px;
-  right: 12px;
-  background: var(--accent-cyan);
-  color: #080a10;
-  font-family: var(--font-display);
-  font-size: 0.55rem;
-  font-weight: 900;
-  padding: 1px 6px;
-  border-radius: 8px;
-  letter-spacing: 0.5px;
-  box-shadow: 0 0 8px var(--accent-cyan);
-}
-
-.auto-alt-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  cursor: pointer;
-  user-select: none;
-  padding-left: 6px;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.auto-alt-toggle input {
-  cursor: pointer;
-  accent-color: var(--accent-cyan);
-}
-
-/* Quick Stats HUD */
-.penalty-stats-hud {
-  display: flex;
-  align-items: center;
+/* Stats Grid inside Left Flank */
+.flank-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.hud-stat-pill {
+.flank-stat-pill {
   display: flex;
   flex-direction: column;
   align-items: center;
   background: rgba(255, 255, 255, 0.05);
-  padding: 3px 9px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  min-width: 52px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.2s;
 }
 
-.stat-lbl {
-  font-size: 0.58rem;
+.flank-stat-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 240, 255, 0.3);
+}
+
+.flank-stat-pill.full-width {
+  grid-column: span 2;
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 8px 14px;
+}
+
+.flank-stat-pill .stat-lbl {
+  font-size: 0.6rem;
   font-weight: 800;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.8px;
   color: var(--text-dim);
 }
 
-.stat-val {
+.flank-stat-pill .stat-val {
   font-family: var(--font-score);
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 1.3rem;
+  font-weight: 900;
   color: #ffffff;
+  line-height: 1.1;
+}
+
+.flank-stat-pill .stat-val.highlight {
+  color: var(--accent-emerald);
+  text-shadow: 0 0 10px rgba(5, 255, 161, 0.6);
+}
+
+.flank-stat-pill .stat-val.streak {
+  color: var(--accent-gold);
+  text-shadow: 0 0 10px rgba(255, 200, 55, 0.6);
+}
+
+/* Tip card inside Left Flank */
+.flank-tip-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(0, 240, 255, 0.06);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 12px;
+  margin-top: 4px;
+}
+
+.tip-icon {
+  font-size: 1.2rem;
   line-height: 1;
 }
 
-.stat-val.highlight {
-  color: var(--accent-emerald);
-  text-shadow: 0 0 8px rgba(5, 255, 161, 0.5);
+.tip-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.stat-val.streak {
-  color: var(--accent-gold);
-  text-shadow: 0 0 8px rgba(255, 200, 55, 0.5);
+.tip-heading {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
 }
 
-/* Header Actions */
-.penalty-header-actions {
+.tip-desc {
+  font-size: 0.68rem;
+  line-height: 1.25;
+  color: var(--text-muted);
+}
+
+/* Actions inside Right Flank */
+.flank-close-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 42, 109, 0.4);
+  color: var(--accent-rose);
+  background: rgba(255, 42, 109, 0.12);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.flank-close-btn:hover {
+  background: var(--accent-rose);
+  color: #080c16;
+  transform: scale(1.08);
+  box-shadow: 0 0 14px var(--accent-rose);
+}
+
+.flank-actions-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flank-control-btn {
+  width: 100%;
+  justify-content: center;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.penalty-header-actions .action-btn {
-  padding: 6px 12px;
-  font-size: 0.75rem;
+.flank-control-btn:hover {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 240, 255, 0.25);
 }
 
-.penalty-header-actions .close-btn {
-  border-color: rgba(255, 42, 109, 0.4);
-  color: var(--accent-rose);
+.flank-control-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  user-select: none;
+  transition: all 0.2s;
 }
 
-.penalty-header-actions .close-btn:hover {
-  background: var(--accent-rose);
-  color: #080c16;
+.flank-control-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.flank-control-toggle input {
+  accent-color: var(--accent-cyan);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Shortcuts helper inside Right Flank */
+.flank-shortcuts-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 4px;
+}
+
+.flank-info-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.flank-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
 /* Interactive Canvas Stage Container */
@@ -2375,8 +2617,77 @@ body.stream-mode .random-goal-floating-btn {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* Responsive Styles for Penalty Arena */
+/* Responsive Flank Panels & Penalty Arena */
+@media (max-width: 1440px) {
+  .penalty-modal-outer-layout {
+    gap: 14px;
+  }
+  .penalty-flank-widget.left {
+    width: 205px;
+    padding: 16px 12px;
+  }
+  .penalty-flank-widget.right {
+    width: 190px;
+    padding: 16px 12px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .penalty-modal-outer-layout {
+    display: block;
+    height: 96vh;
+    padding: 0;
+  }
+  .penalty-modal-dialog {
+    width: 100%;
+    height: 100%;
+  }
+  .penalty-flank-widget.left {
+    position: absolute;
+    top: 90px;
+    left: 12px;
+    width: 200px;
+    z-index: 30;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+  }
+  .penalty-flank-widget.right {
+    position: absolute;
+    top: 90px;
+    right: 12px;
+    width: 185px;
+    z-index: 30;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+  }
+}
+
 @media (max-width: 900px) {
+  .penalty-flank-widget.left {
+    max-width: 180px;
+    left: 6px;
+    top: 80px;
+    padding: 10px 8px;
+  }
+  .penalty-flank-widget.right {
+    max-width: 165px;
+    right: 6px;
+    top: 80px;
+    padding: 10px 8px;
+  }
+  .flank-arena-title {
+    font-size: 0.85rem;
+  }
+  .shooter-score-big {
+    font-size: 2rem;
+  }
+  .shooter-pill {
+    min-width: 160px;
+    padding: 6px 12px 6px 8px;
+    gap: 10px;
+  }
+  .shooter-avatar {
+    width: 36px;
+    height: 36px;
+  }
   .penalty-floating-btn {
     bottom: 18px;
     right: 18px;
@@ -2408,18 +2719,6 @@ body.stream-mode .random-goal-floating-btn {
   .penalty-arena-header {
     padding: 8px 12px;
     gap: 8px;
-  }
-  .penalty-arena-title {
-    font-size: 0.95rem;
-  }
-  .penalty-stats-hud {
-    overflow-x: auto;
-    width: 100%;
-    padding-bottom: 4px;
-  }
-  .hud-stat-pill {
-    min-width: 44px;
-    padding: 2px 6px;
   }
   .penalty-outcome-banner {
     font-size: 2.6rem;
