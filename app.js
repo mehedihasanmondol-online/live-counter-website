@@ -26,6 +26,7 @@
       score: 0,
       color: PALETTE[0].hex,
       colorRgb: PALETTE[0].rgb,
+      goalSound: 'assets/Goal sound effect.mp3',
       posX: 50,
       posY: 50
     },
@@ -37,6 +38,7 @@
       score: 0,
       color: PALETTE[1].hex,
       colorRgb: PALETTE[1].rgb,
+      goalSound: 'assets/Goal sound effect 2.mp3',
       posX: 50,
       posY: 50
     }
@@ -92,6 +94,8 @@
   const playerNameInput = document.getElementById('player-name-input');
   const playerTagInput = document.getElementById('player-tag-input');
   const playerAvatarInput = document.getElementById('player-avatar-input');
+  const playerGoalSoundSelect = document.getElementById('player-goalsound-select');
+  const previewGoalSoundBtn = document.getElementById('preview-goalsound-btn');
   const avatarUploadFile = document.getElementById('avatar-upload-file');
   const previewAvatarCircle = document.getElementById('preview-avatar-circle');
   const colorSwatchesContainer = document.getElementById('color-swatches');
@@ -143,11 +147,14 @@
       const savedPlayers = localStorage.getItem('live_counter_players');
       if (savedPlayers) {
         players = JSON.parse(savedPlayers);
-        players.forEach(p => {
+        players.forEach((p, idx) => {
           if (p.posX === undefined || isNaN(p.posX)) p.posX = 50;
           if (p.posY === undefined || isNaN(p.posY)) p.posY = 50;
           if (p.penaltyPosX === undefined || isNaN(p.penaltyPosX)) p.penaltyPosX = 50;
           if (p.penaltyPosY === undefined || isNaN(p.penaltyPosY)) p.penaltyPosY = 50;
+          if (!p.goalSound) {
+            p.goalSound = (idx % 2 === 0) ? 'assets/Goal sound effect.mp3' : 'assets/Goal sound effect 2.mp3';
+          }
         });
       } else {
         players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
@@ -961,10 +968,10 @@
       modifyScore(winnerPlayer.id, 1, null, null, true);
     }, 320);
 
-    // Goal celebration with clapping and announcer shout
+    // Goal celebration with player-specific audio effect
     if (window.soundEngine) {
       if (window.soundEngine.playGoalCelebration) {
-        window.soundEngine.playGoalCelebration(winnerPlayer.name);
+        window.soundEngine.playGoalCelebration(winnerPlayer);
       } else if (window.soundEngine.playCasinoChime) {
         const pitchMult = streak >= 4 ? 1.25 : (streak >= 2 ? 1.12 : 1.0);
         window.soundEngine.playCasinoChime(pitchMult);
@@ -1119,6 +1126,9 @@
         previewAvatarCircle.src = p.avatar;
         selectedColor = p.color;
         selectedColorRgb = p.colorRgb;
+        if (playerGoalSoundSelect) {
+          playerGoalSoundSelect.value = p.goalSound || (players.indexOf(p) % 2 === 0 ? 'assets/Goal sound effect.mp3' : 'assets/Goal sound effect 2.mp3');
+        }
         renderColorSwatches();
         deletePlayerBtn.style.display = players.length > 1 ? 'block' : 'none';
       }
@@ -1133,6 +1143,9 @@
       playerNameInput.value = `Player ${nextIndex}`;
       playerTagInput.value = `P${nextIndex}`;
       playerAvatarInput.value = '';
+      if (playerGoalSoundSelect) {
+        playerGoalSoundSelect.value = (players.length % 2 === 0) ? 'assets/Goal sound effect.mp3' : 'assets/Goal sound effect 2.mp3';
+      }
       previewAvatarCircle.src = 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'64\' height=\'64\' viewBox=\'0 0 24 24\' fill=\'%2354627d\'><circle cx=\'12\' cy=\'12\' r=\'10\'/></svg>';
       deletePlayerBtn.style.display = 'none';
     }
@@ -1145,6 +1158,7 @@
     const name = playerNameInput.value.trim() || 'Player';
     const tag = playerTagInput.value.trim() || 'PRO';
     const avatar = playerAvatarInput.value.trim() || 'data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'58\' height=\'58\' viewBox=\'0 0 24 24\' fill=\'%2354627d\'><circle cx=\'12\' cy=\'12\' r=\'10\'/></svg>';
+    const goalSound = playerGoalSoundSelect ? playerGoalSoundSelect.value : 'assets/Goal sound effect.mp3';
 
     if (editingPlayerId) {
       const p = players.find(x => x.id === editingPlayerId);
@@ -1154,6 +1168,7 @@
         p.avatar = avatar;
         p.color = selectedColor;
         p.colorRgb = selectedColorRgb;
+        p.goalSound = goalSound;
       }
     } else {
       // Add new
@@ -1163,6 +1178,7 @@
         name,
         tag,
         avatar,
+        goalSound,
         score: initialScore,
         color: selectedColor,
         colorRgb: selectedColorRgb,
@@ -1436,6 +1452,15 @@
     savePlayerBtn.addEventListener('click', savePlayer);
     deletePlayerBtn.addEventListener('click', deletePlayer);
     cancelPlayerBtn.addEventListener('click', () => playerModal.classList.remove('show'));
+
+    // Goal sound preview button in player modal
+    if (previewGoalSoundBtn && playerGoalSoundSelect) {
+      previewGoalSoundBtn.addEventListener('click', () => {
+        if (window.soundEngine && window.soundEngine.playGoalCelebration) {
+          window.soundEngine.playGoalCelebration(playerGoalSoundSelect.value);
+        }
+      });
+    }
 
     // Avatar preview input update
     playerAvatarInput.addEventListener('input', () => {

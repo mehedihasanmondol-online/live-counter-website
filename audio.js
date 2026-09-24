@@ -31,6 +31,8 @@ class SoundEngine {
     this.goalAudioBuffers = [];
     this.goalAudioElements = [];
     this.lastGoalSoundIndex = -1;
+    this.currentGoalSource = null;
+    this.currentGoalAudio = null;
     this.initGoalAudio();
   }
 
@@ -615,19 +617,85 @@ class SoundEngine {
     }
   }
 
-  // Random Goal Sound Effect MP3 ('Goal sound effect.mp3' or 'Goal sound effect 2.mp3')
-  playRandomGoalSound() {
+  // Player-specific Goal Sound Effect MP3 ('Goal sound effect.mp3' for Player 1 / Messi, 'Goal sound effect 2.mp3' for Player 2 / Ronaldo)
+  playGoalSoundForPlayer(playerOrIdentifier = null) {
     if (this.muted) return;
     this.initAudioContext();
 
     if (!this.goalSoundFiles || this.goalSoundFiles.length === 0) return;
 
-    // Pick randomly between the two files (alternating to avoid repeating the exact same one back-to-back)
-    let idx = Math.floor(Math.random() * this.goalSoundFiles.length);
-    if (this.goalSoundFiles.length > 1 && idx === this.lastGoalSoundIndex) {
-      idx = (idx + 1) % this.goalSoundFiles.length;
+    let targetIdx = 0;
+
+    if (typeof playerOrIdentifier === 'number') {
+      targetIdx = Math.abs(Math.floor(playerOrIdentifier)) % this.goalSoundFiles.length;
+    } else if (typeof playerOrIdentifier === 'string') {
+      const lower = playerOrIdentifier.toLowerCase().trim();
+      if (lower.includes('2.mp3') || lower.endsWith(' 2') || lower === '2' || lower === 'p2' || lower.includes('ronaldo')) {
+        targetIdx = 1;
+      } else if (lower.includes('sound effect') || lower === '1' || lower === 'p1' || lower.includes('messi')) {
+        targetIdx = 0;
+      } else if (typeof window !== 'undefined' && window.arenaApp && window.arenaApp.getPlayers) {
+        const players = window.arenaApp.getPlayers();
+        const pIdx = players.findIndex(p => p.id === playerOrIdentifier || (p.name && p.name.toLowerCase() === lower));
+        if (pIdx !== -1) {
+          const found = players[pIdx];
+          if (found.goalSound && found.goalSound.includes('2')) {
+            targetIdx = 1;
+          } else if (found.goalSound) {
+            targetIdx = 0;
+          } else {
+            targetIdx = pIdx % this.goalSoundFiles.length;
+          }
+        }
+      }
+    } else if (playerOrIdentifier && typeof playerOrIdentifier === 'object') {
+      if (playerOrIdentifier.goalSound) {
+        targetIdx = playerOrIdentifier.goalSound.includes('2') ? 1 : 0;
+      } else if (playerOrIdentifier.goalSoundIndex !== undefined) {
+        targetIdx = Math.abs(playerOrIdentifier.goalSoundIndex) % this.goalSoundFiles.length;
+      } else if (playerOrIdentifier.id === 'p2' || (playerOrIdentifier.name && playerOrIdentifier.name.toLowerCase().includes('ronaldo'))) {
+        targetIdx = 1;
+      } else if (playerOrIdentifier.id === 'p1' || (playerOrIdentifier.name && playerOrIdentifier.name.toLowerCase().includes('messi'))) {
+        targetIdx = 0;
+      } else if (typeof window !== 'undefined' && window.arenaApp && window.arenaApp.getPlayers) {
+        const players = window.arenaApp.getPlayers();
+        const pIdx = players.findIndex(p => p.id === playerOrIdentifier.id);
+        targetIdx = pIdx >= 0 ? (pIdx % this.goalSoundFiles.length) : 0;
+      }
+    } else {
+      // Fallback: check active kicker in penaltyGame if available
+      if (typeof window !== 'undefined' && window.penaltyGame && window.penaltyGame.activePlayerId) {
+        return this.playGoalSoundForPlayer(window.penaltyGame.activePlayerId);
+      }
+      targetIdx = 0;
     }
-    this.lastGoalSoundIndex = idx;
+
+    this.playGoalSoundByIndex(targetIdx);
+  }
+
+  // Play a specific goal sound by index (0 for Sound 1 / Messi, 1 for Sound 2 / Ronaldo)
+  playGoalSoundByIndex(idx = 0) {
+    if (this.muted) return;
+    this.initAudioContext();
+
+    if (!this.goalSoundFiles || this.goalSoundFiles.length === 0) return;
+    idx = Math.max(0, Math.min(idx, this.goalSoundFiles.length - 1));
+
+    // Stop previous active goal sound to avoid audio clashing
+    if (this.currentGoalAudio) {
+      try {
+        this.currentGoalAudio.pause();
+        this.currentGoalAudio.currentTime = 0;
+      } catch (e) {}
+      this.currentGoalAudio = null;
+    }
+    if (this.currentGoalSource) {
+      try {
+        this.currentGoalSource.stop();
+        this.currentGoalSource.disconnect();
+      } catch (e) {}
+      this.currentGoalSource = null;
+    }
 
     // 1. Try Web Audio buffer source (instant low-latency playback)
     if (this.ctx && this.goalAudioBuffers[idx]) {
@@ -639,6 +707,7 @@ class SoundEngine {
         source.connect(gain);
         gain.connect(this.ctx.destination);
         source.start(0);
+        this.currentGoalSource = source;
         return;
       } catch (err) {
         console.warn('Buffer playback error, falling back:', err);
@@ -650,6 +719,7 @@ class SoundEngine {
       const audio = this.goalAudioElements[idx] || new Audio(encodeURI(this.goalSoundFiles[idx]));
       audio.currentTime = 0;
       audio.volume = 1.0;
+      this.currentGoalAudio = audio;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(err => console.warn('Goal sound playback error:', err));
@@ -659,8 +729,8 @@ class SoundEngine {
     }
   }
 
-  // Pure Goal Celebration: Exclusively plays the user's Goal Sound Effect MP3 randomly (no speech, no synthetic sounds)
-  playGoalCelebration() {
+  // Pure Goal Celebration: Plays the player-specific Goal Sound Effect MP3 (not random, no speech)
+  playGoalCelebration(playerOrIdentifier = null) {
     if (this.muted) return;
     this.initAudioContext();
 
@@ -669,13 +739,24 @@ class SoundEngine {
       try { window.speechSynthesis.cancel(); } catch (e) {}
     }
 
-    // Play purely the random goal sound effect MP3 ('Goal sound effect.mp3' or 'Goal sound effect 2.mp3')
-    this.playRandomGoalSound();
+    // Play player-specific goal sound effect MP3
+    this.playGoalSoundForPlayer(playerOrIdentifier);
   }
 
   // Direct alias
-  playGoalSound() {
-    this.playGoalCelebration();
+  playGoalSound(playerOrIdentifier = null) {
+    this.playGoalCelebration(playerOrIdentifier);
+  }
+
+  // Backwards-compatibility alias: redirects to player sound if provided, or alternates deterministically
+  playRandomGoalSound(playerOrIdentifier = null) {
+    if (playerOrIdentifier) {
+      this.playGoalSoundForPlayer(playerOrIdentifier);
+      return;
+    }
+    const idx = (this.lastGoalSoundIndex + 1) % this.goalSoundFiles.length;
+    this.lastGoalSoundIndex = idx;
+    this.playGoalSoundByIndex(idx);
   }
 
   // Noise transient helper

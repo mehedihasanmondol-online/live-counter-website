@@ -1178,9 +1178,11 @@
 
         if (this.soundEnabled && window.soundEngine) {
           if (window.soundEngine.playGoalCelebration) {
-            window.soundEngine.playGoalCelebration();
+            window.soundEngine.playGoalCelebration(activeP);
+          } else if (window.soundEngine.playGoalSoundForPlayer) {
+            window.soundEngine.playGoalSoundForPlayer(activeP);
           } else if (window.soundEngine.playRandomGoalSound) {
-            window.soundEngine.playRandomGoalSound();
+            window.soundEngine.playRandomGoalSound(activeP);
           }
         }
 

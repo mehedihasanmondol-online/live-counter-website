@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
   <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
-  <link rel="stylesheet" href="style.css?v=1.1.7">
+  <link rel="stylesheet" href="style.css?v=1.1.9">
 </head>
 <body>
 
@@ -237,6 +237,19 @@
                 <input type="file" id="avatar-upload-file" accept="image/*" style="display: none;">
               </label>
             </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="player-goalsound-select">Goal Celebration Sound Effect</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <select class="form-input" id="player-goalsound-select" style="flex: 1; cursor: pointer;">
+              <option value="assets/Goal sound effect.mp3">Goal Sound 1 (Lionel Messi)</option>
+              <option value="assets/Goal sound effect 2.mp3">Goal Sound 2 (Cristiano Ronaldo)</option>
+            </select>
+            <button type="button" class="action-btn icon-only" id="preview-goalsound-btn" title="Preview Goal Sound" style="flex-shrink: 0; width: 44px; height: 42px; font-size: 1.1rem;">
+              🔊
+            </button>
           </div>
         </div>
 
@@ -481,11 +494,11 @@
     <button class="pwa-update-btn" id="pwa-update-btn">UPDATE NOW</button>
   </div>
 
-  <!-- Scripts (Cache-Busted with ?v=1.1.7) -->
-  <script src="audio.js?v=1.1.7"></script>
-  <script src="confetti.js?v=1.1.7"></script>
-  <script src="app.js?v=1.1.7"></script>
-  <script src="penalty-game.js?v=1.1.7"></script>
-  <script src="pwa.js?v=1.1.7"></script>
+  <!-- Scripts (Cache-Busted with ?v=1.1.9) -->
+  <script src="audio.js?v=1.1.9"></script>
+  <script src="confetti.js?v=1.1.9"></script>
+  <script src="app.js?v=1.1.9"></script>
+  <script src="penalty-game.js?v=1.1.9"></script>
+  <script src="pwa.js?v=1.1.9"></script>
 </body>
 </html>
