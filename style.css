@@ -2783,6 +2783,13 @@ body.stream-mode .random-goal-floating-btn {
   box-shadow: 0 6px 18px rgba(0, 240, 255, 0.25);
 }
 
+.penalty-auto-shoot-btn.active {
+  background: rgba(0, 255, 136, 0.22) !important;
+  border-color: rgba(0, 255, 136, 0.7) !important;
+  color: #00ff88 !important;
+  box-shadow: 0 0 18px rgba(0, 255, 136, 0.35) !important;
+}
+
 .flank-control-toggle {
   display: flex;
   align-items: center;

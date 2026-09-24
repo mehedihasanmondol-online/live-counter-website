@@ -1084,6 +1084,13 @@
       window.soundEngine.playIncrement();
     }
 
+    // Synchronize with Penalty Shootout game if it is currently open
+    if (window.penaltyGame && window.penaltyGame.isOpen) {
+      if (window.penaltyGame.isAutoShoot !== isAutoPlayActive) {
+        window.penaltyGame.toggleAutoShoot(isAutoPlayActive);
+      }
+    }
+
     if (isAutoPlayActive) {
       // If home page is currently active, schedule first automatic strike
       if (isHomePageActive() && !isRandomShuffling && !autoPlayTimer) {

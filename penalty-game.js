@@ -122,6 +122,10 @@
       this.activePointerId = null;
       this.backdropPointerDown = false;
 
+      // Auto Shoot Engine (50% Competitive Accuracy)
+      this.isAutoShoot = false;
+      this.autoShootTimer = null;
+
       // DOM Elements
       this.modalEl = null;
       this.floatingBtnEl = null;
@@ -267,6 +271,14 @@
         });
       }
 
+      // Auto Shoot button
+      const autoShootBtn = document.getElementById('penalty-auto-shoot-btn');
+      if (autoShootBtn) {
+        autoShootBtn.addEventListener('click', () => {
+          this.toggleAutoShoot();
+        });
+      }
+
       // Reset shootout stats button
       const resetStatsBtn = document.getElementById('penalty-reset-stats-btn');
       if (resetStatsBtn) {
@@ -320,6 +332,13 @@
       }
       window.dispatchEvent(new CustomEvent('penaltyGameOpened'));
 
+      // Sync Auto Shoot with main Auto Play if active
+      const mainAutoActive = window.arenaApp && window.arenaApp.isAutoPlayActive && window.arenaApp.isAutoPlayActive();
+      if (mainAutoActive) {
+        this.isAutoShoot = true;
+      }
+      this.updateAutoShootUI();
+
       const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
       this.preloadPlayerImages(players);
       this.syncActivePlayer();
@@ -337,6 +356,10 @@
       if (!this.animId) {
         this.animId = requestAnimationFrame(this.loop);
       }
+
+      if (this.isAutoShoot) {
+        this.scheduleNextAutoKick(1400);
+      }
     }
 
     closeGame() {
@@ -344,6 +367,11 @@
       this.isOpen = false;
       this.modalEl.classList.remove('show');
       document.body.classList.remove('penalty-active');
+
+      if (this.autoShootTimer) {
+        clearTimeout(this.autoShootTimer);
+        this.autoShootTimer = null;
+      }
 
       if (window.arenaApp && window.arenaApp.onViewChange) {
         window.arenaApp.onViewChange();
@@ -684,7 +712,7 @@
     }
 
     advanceToNextPlayer() {
-      if (!this.autoAlternate) return;
+      if (!this.autoAlternate && !this.isAutoShoot) return;
       const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
       if (players.length < 2) return;
 
@@ -927,7 +955,7 @@
       this.launchBall(deltaX, deltaY, swipeDistance);
     }
 
-    shootTowardsTarget(targetX, targetY) {
+    shootTowardsTarget(targetX, targetY, power = 1.0, forceKeeperDodge = false, forceKeeperSave = false) {
       // Must be aiming at or above the goal line
       if (targetY > this.goal.bottom + 25) {
         this.resetBall();
@@ -939,17 +967,40 @@
       this.setKickerStatus('kicked');
       this.kicker.kickProgress = 1.0;
 
-      const clampedPower = 1.0;
+      const clampedPower = Math.min(Math.max(power, 0.7), 1.5);
       this.ball.vz = 0.024 * (0.8 + clampedPower * 0.4);
-      this.ball.vx = (targetX - this.ball.x) * this.ball.vz;
-      this.ball.vy = (targetY - this.ball.y) * this.ball.vz;
-      this.ball.spin = ((targetX - this.width / 2) / 100) * 0.4;
+
+      // Aesthetic Magnus spin curl
+      let spin = 0;
+      if (forceKeeperDodge) {
+        spin = (targetX > this.width / 2 ? 1 : -1) * 0.16;
+      } else if (!forceKeeperSave) {
+        spin = ((targetX - this.width / 2) / 100) * 0.12;
+      }
+      this.ball.spin = spin;
+
+      // Ballistic integration: calculate exact flight steps, gravity and Magnus curve drift
+      let simZ = 0;
+      let steps = 0;
+      let totalGravY = 0;
+      let curVyGrav = 0;
+      while (simZ < 1.0) {
+        totalGravY += curVyGrav;
+        simZ += this.ball.vz;
+        curVyGrav += 0.12 * (simZ * 1.5);
+        steps++;
+      }
+      const totalSpinX = (steps * (steps + 1) / 2) * (this.ball.spin * 0.35);
+
+      // Calibrate initial vx and vy so ball arrives precisely at targetX and targetY when ball.z reaches 1.0
+      this.ball.vx = (targetX - this.ball.x - totalSpinX) / steps;
+      this.ball.vy = (targetY - this.ball.y - totalGravY) / steps;
 
       if (this.soundEnabled && window.soundEngine && window.soundEngine.playKick) {
         window.soundEngine.playKick(clampedPower);
       }
 
-      this.triggerKeeperDive(targetX, targetY, clampedPower);
+      this.triggerKeeperDive(targetX, targetY, clampedPower, forceKeeperDodge, forceKeeperSave);
     }
 
     launchBall(deltaX, deltaY, powerMag) {
@@ -997,21 +1048,33 @@
        Goalkeeper AI & Trajectory Prediction
        ========================================================================== */
 
-    triggerKeeperDive(targetX, targetY, power) {
-      const reactionDelay = 80 + Math.random() * 80;
+    triggerKeeperDive(targetX, targetY, power, forceKeeperDodge = false, forceKeeperSave = false) {
+      let reactionDelay;
+      let diveTargetX = targetX;
+      let diveTargetY = targetY;
 
-      setTimeout(() => {
-        if (this.ball.state !== 'flying') return;
-
+      if (forceKeeperSave) {
+        reactionDelay = 35 + Math.random() * 35; // Fast keeper reaction to reach and save the ball
+        diveTargetX = targetX;
+        diveTargetY = targetY;
+      } else if (forceKeeperDodge) {
+        reactionDelay = 100 + Math.random() * 60;
+        // Dive convincingly in the opposite direction or lower so the strike scores cleanly
+        const wrongSide = targetX > this.width / 2 ? -1 : 1;
+        diveTargetX = this.width / 2 + wrongSide * (this.goal.width * 0.32);
+        diveTargetY = this.goal.bottom - this.goal.height * 0.28;
+      } else {
+        reactionDelay = 80 + Math.random() * 80;
         const readsCorrect = Math.random() < 0.66;
-        let diveTargetX = targetX;
-        let diveTargetY = targetY;
-
         if (!readsCorrect) {
           const wrongDirection = targetX > this.width / 2 ? -1 : 1;
           diveTargetX = this.width / 2 + wrongDirection * (this.goal.width * 0.35);
           diveTargetY = this.goal.bottom - Math.random() * this.goal.height * 0.6;
         }
+      }
+
+      setTimeout(() => {
+        if (this.ball.state !== 'flying') return;
 
         const isLeft = diveTargetX < this.width / 2;
         const isHigh = diveTargetY < this.goal.top + this.goal.height * 0.5;
@@ -1298,6 +1361,12 @@
           this.advanceToNextPlayer();
           this.resetBall();
           this.resetKeeper();
+          if (this.isAutoShoot) {
+            this.scheduleNextAutoKick(1300);
+          }
+        } else {
+          this.isAutoShoot = false;
+          this.updateAutoShootUI();
         }
       }, 2000);
     }
@@ -1361,6 +1430,139 @@
     }
 
     /* ==========================================================================
+       Penalty Auto Shootout Engine (50% Competitive Accuracy)
+       ========================================================================== */
+
+    toggleAutoShoot(forceVal = null) {
+      if (forceVal !== null) {
+        this.isAutoShoot = !!forceVal;
+      } else {
+        this.isAutoShoot = !this.isAutoShoot;
+      }
+
+      this.updateAutoShootUI();
+
+      // Synchronize with main arena Auto Play state
+      if (window.arenaApp && window.arenaApp.toggleAutoPlay && window.arenaApp.isAutoPlayActive) {
+        if (window.arenaApp.isAutoPlayActive() !== this.isAutoShoot) {
+          window.arenaApp.toggleAutoPlay(this.isAutoShoot);
+        }
+      }
+
+      if (this.isAutoShoot) {
+        if (this.isOpen && this.ball.state === 'ready' && !this.autoShootTimer) {
+          this.scheduleNextAutoKick(700);
+        }
+      } else {
+        if (this.autoShootTimer) {
+          clearTimeout(this.autoShootTimer);
+          this.autoShootTimer = null;
+        }
+      }
+    }
+
+    updateAutoShootUI() {
+      const btn = document.getElementById('penalty-auto-shoot-btn');
+      if (btn) {
+        btn.classList.toggle('active', this.isAutoShoot);
+        btn.innerHTML = this.isAutoShoot ? '⚡ Auto Shoot: ON' : '⚡ Auto Shoot: OFF';
+      }
+    }
+
+    scheduleNextAutoKick(delay = 1300) {
+      if (this.autoShootTimer) {
+        clearTimeout(this.autoShootTimer);
+        this.autoShootTimer = null;
+      }
+
+      if (!this.isOpen || !this.isAutoShoot) return;
+
+      this.autoShootTimer = setTimeout(() => {
+        this.autoShootTimer = null;
+        if (!this.isOpen || !this.isAutoShoot) return;
+        this.executeAutoKick();
+      }, delay);
+    }
+
+    executeAutoKick() {
+      if (!this.isOpen || !this.isAutoShoot) return;
+      if (this.ball.state !== 'ready') return;
+      if (!this.goal || this.goal.width <= 0) return;
+
+      const gl = this.goal.left;
+      const gr = this.goal.right;
+      const gt = this.goal.top;
+      const gb = this.goal.bottom;
+      const gw = this.goal.width;
+      const gh = this.goal.height;
+
+      // 50% accurate strike rate as explicitly requested by user
+      const isGoal = Math.random() < 0.50;
+
+      let targetX, targetY, power;
+      let forceKeeperDodge = false;
+      let forceKeeperSave = false;
+
+      if (isGoal) {
+        // --- 50% GOAL: Precision corner strike that beats the keeper ---
+        const cornerPicks = [
+          // Top Left Corner (Upper 90)
+          { x: gl + gw * (0.12 + Math.random() * 0.06), y: gt + gh * (0.15 + Math.random() * 0.08) },
+          // Top Right Corner (Upper 90)
+          { x: gr - gw * (0.12 + Math.random() * 0.06), y: gt + gh * (0.15 + Math.random() * 0.08) },
+          // Bottom Left Corner
+          { x: gl + gw * (0.12 + Math.random() * 0.06), y: gb - gh * (0.14 + Math.random() * 0.08) },
+          // Bottom Right Corner
+          { x: gr - gw * (0.12 + Math.random() * 0.06), y: gb - gh * (0.14 + Math.random() * 0.08) }
+        ];
+        const chosen = cornerPicks[Math.floor(Math.random() * cornerPicks.length)];
+        targetX = chosen.x;
+        targetY = chosen.y;
+        power = 1.15 + Math.random() * 0.2;
+        forceKeeperDodge = true;
+      } else {
+        // --- 50% NON-GOAL: Goalkeeper save, woodwork clang, or close miss ---
+        const nonGoalType = Math.random();
+
+        if (nonGoalType < 0.70) {
+          // Goalkeeper Save (~35% overall)
+          const diveSide = Math.random() < 0.5 ? -1 : 1;
+          targetX = (this.width / 2) + diveSide * (gw * (0.18 + Math.random() * 0.16));
+          targetY = gt + gh * (0.35 + Math.random() * 0.35);
+          power = 0.95 + Math.random() * 0.18;
+          forceKeeperSave = true;
+        } else if (nonGoalType < 0.88) {
+          // Woodwork Post / Crossbar (~9% overall)
+          const woodPick = Math.random();
+          if (woodPick < 0.45) {
+            targetX = gl;
+            targetY = gt + gh * (0.2 + Math.random() * 0.5);
+          } else if (woodPick < 0.90) {
+            targetX = gr;
+            targetY = gt + gh * (0.2 + Math.random() * 0.5);
+          } else {
+            targetX = gl + gw * (0.25 + Math.random() * 0.5);
+            targetY = gt;
+          }
+          power = 1.1 + Math.random() * 0.15;
+        } else {
+          // Missed Wide / Over (~6% overall)
+          const missSide = Math.random() < 0.5 ? -1 : 1;
+          if (Math.random() < 0.6) {
+            targetX = (this.width / 2) + missSide * (gw * 0.56 + Math.random() * 16);
+            targetY = gt + gh * (0.2 + Math.random() * 0.4);
+          } else {
+            targetX = gl + gw * (0.2 + Math.random() * 0.6);
+            targetY = gt - (gh * 0.12 + Math.random() * 14);
+          }
+          power = 1.2 + Math.random() * 0.2;
+        }
+      }
+
+      this.shootTowardsTarget(targetX, targetY, power, forceKeeperDodge, forceKeeperSave);
+    }
+
+    /* ==========================================================================
        Goalkeeper Updates & Physics
        ========================================================================== */
 
@@ -1388,8 +1590,8 @@
       } else if (this.keeper.state === 'diving') {
         const dx = this.keeper.targetX - this.keeper.x;
         const dy = this.keeper.targetY - this.keeper.y;
-        this.keeper.x += dx * 0.22;
-        this.keeper.y += dy * 0.22;
+        this.keeper.x += dx * 0.26;
+        this.keeper.y += dy * 0.26;
         this.keeper.diveProgress = Math.min(this.keeper.diveProgress + dt * 3.8, 1.0);
       } else if (this.keeper.state === 'celebrating') {
         this.keeper.y = targetBaseY - Math.abs(Math.sin(Date.now() * 0.008)) * 14;
