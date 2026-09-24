@@ -1688,10 +1688,24 @@
      ========================================================================== */
 
   function setupKeyboardHotkeys() {
+    let ctrlPressedSolo = false;
+
     window.addEventListener('keydown', (e) => {
       // Don't trigger hotkeys if user is currently typing in an input field
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        ctrlPressedSolo = false;
         return;
+      }
+
+      // Track Ctrl key pressed alone without combination
+      if (e.key === 'Control') {
+        if (!e.repeat) {
+          ctrlPressedSolo = true;
+        }
+        return;
+      } else if (e.ctrlKey) {
+        // Any other key pressed with Ctrl (e.g. Ctrl+Z, Ctrl+C) invalidates solo Ctrl
+        ctrlPressedSolo = false;
       }
 
       // Space or G -> Golden Goal Strike
@@ -1769,6 +1783,26 @@
         shortcutsModal.classList.toggle('show');
         e.preventDefault();
       }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        ctrlPressedSolo = false;
+        return;
+      }
+
+      // If Ctrl was pressed and released without any other keys -> Toggle Auto Play!
+      if (e.key === 'Control') {
+        if (ctrlPressedSolo) {
+          ctrlPressedSolo = false;
+          toggleAutoPlay();
+          e.preventDefault();
+        }
+      }
+    });
+
+    window.addEventListener('blur', () => {
+      ctrlPressedSolo = false;
     });
   }
 
