@@ -1010,7 +1010,7 @@
         const titleEl = randomGoalBtn.querySelector('.random-title');
         const subEl = randomGoalBtn.querySelector('.random-subtitle');
         if (titleEl) titleEl.innerText = 'GOLDEN GOAL';
-        if (subEl) subEl.innerText = isAutoPlayActive ? '⚡ AUTO ACTIVE • +1 GOAL' : 'INSTANT STRIKE • +1 GOAL';
+        if (subEl) subEl.innerText = 'INSTANT STRIKE • +1 GOAL';
       }
 
       isRandomShuffling = false;
@@ -1067,10 +1067,6 @@
     }
     if (randomGoalBtn) {
       randomGoalBtn.classList.toggle('auto-playing', isAutoPlayActive);
-      const subEl = randomGoalBtn.querySelector('.random-subtitle');
-      if (subEl && !isRandomShuffling) {
-        subEl.innerText = isAutoPlayActive ? '⚡ AUTO ACTIVE • +1 GOAL' : 'INSTANT STRIKE • +1 GOAL';
-      }
     }
   }
 
