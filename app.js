@@ -633,8 +633,67 @@
   }
 
   /* ==========================================================================
-     Win Celebration & Fanfare
+     Win Celebration, Fanfare & Auto Rematch Engine
      ========================================================================== */
+
+  let autoRematchTimer = null;
+
+  function clearAutoRematchTimer() {
+    if (autoRematchTimer) {
+      clearTimeout(autoRematchTimer);
+      autoRematchTimer = null;
+    }
+  }
+
+  function scheduleAutoRematch(seconds = 4.5) {
+    clearAutoRematchTimer();
+
+    autoRematchTimer = setTimeout(() => {
+      autoRematchTimer = null;
+      executeRematch(true);
+    }, seconds * 1000);
+  }
+
+  function executeRematch(isAuto = false) {
+    clearAutoRematchTimer();
+
+    players.forEach(p => p.score = initialScore);
+    goldenGoalLastWinnerId = null;
+    goldenGoalStreak = 0;
+    undoStack = [];
+    winner = null;
+    saveState();
+    
+    if (winnerModal) winnerModal.classList.remove('show');
+    if (window.confettiEngine) window.confettiEngine.clear();
+    
+    renderArena();
+
+    if (window.soundEngine && window.soundEngine.playWhistle) {
+      window.soundEngine.playWhistle();
+    }
+
+    const inPenaltyGame = window.penaltyGame && window.penaltyGame.isOpen;
+    if (inPenaltyGame) {
+      window.penaltyGame.resetBall();
+      window.penaltyGame.resetKeeper();
+      window.penaltyGame.hideOutcomeBanner();
+      window.penaltyGame.resetStats();
+      
+      if (window.penaltyGame.isAutoShoot) {
+        window.penaltyGame.setKickerStatus('ready');
+        // Natural timing gap before first penalty of the rematch
+        window.penaltyGame.scheduleNextAutoKick(2200);
+      }
+    } else {
+      if (isAutoPlayActive) {
+        // Natural timing gap before first golden goal of the rematch
+        scheduleNextAutoPlay(2200);
+      }
+    }
+
+    handleViewOrStateChange();
+  }
 
   function triggerWin(player) {
     winner = player;
@@ -648,6 +707,14 @@
     winnerAvatar.src = player.avatar;
     winnerScore.innerText = `FINAL SCORE: ${player.score}`;
     winnerModal.classList.add('show');
+
+    // If Auto Play is active (in Home Golden Goal or Penalty Shootout), schedule rematch naturally after celebration gap
+    const isPenaltyAuto = window.penaltyGame && window.penaltyGame.isOpen && window.penaltyGame.isAutoShoot;
+    if (isAutoPlayActive || isPenaltyAuto) {
+      scheduleAutoRematch(4.5);
+    } else {
+      clearAutoRematchTimer();
+    }
   }
 
   /* ==========================================================================
@@ -1082,6 +1149,10 @@
 
     if (window.soundEngine && window.soundEngine.playIncrement) {
       window.soundEngine.playIncrement();
+    }
+
+    if (!isAutoPlayActive) {
+      clearAutoRematchTimer();
     }
 
     // Synchronize with Penalty Shootout game if it is currently open
@@ -1593,25 +1664,11 @@
 
     // Winner modal buttons
     rematchBtn.addEventListener('click', () => {
-      players.forEach(p => p.score = initialScore);
-      goldenGoalLastWinnerId = null;
-      goldenGoalStreak = 0;
-      undoStack = [];
-      winner = null;
-      saveState();
-      winnerModal.classList.remove('show');
-      if (window.confettiEngine) window.confettiEngine.clear();
-      renderArena();
-      if (window.penaltyGame && window.penaltyGame.isOpen) {
-        window.penaltyGame.resetBall();
-        window.penaltyGame.resetKeeper();
-        window.penaltyGame.hideOutcomeBanner();
-        window.penaltyGame.updateStatsUI();
-      }
-      handleViewOrStateChange();
+      executeRematch(false);
     });
 
     closeWinnerBtn.addEventListener('click', () => {
+      clearAutoRematchTimer();
       winnerModal.classList.remove('show');
       winner = null;
       if (window.confettiEngine) window.confettiEngine.clear();
@@ -1626,6 +1683,7 @@
 
     winnerModal.addEventListener('click', (e) => {
       if (e.target === winnerModal) {
+        clearAutoRematchTimer();
         winnerModal.classList.remove('show');
         winner = null;
         if (window.confettiEngine) window.confettiEngine.clear();
@@ -1826,6 +1884,8 @@
     isAutoPlayActive: () => isAutoPlayActive,
     toggleAutoPlay: (force) => toggleAutoPlay(force),
     isHomePageActive: () => isHomePageActive(),
+    executeRematch: (isAuto) => executeRematch(isAuto),
+    clearAutoRematchTimer: () => clearAutoRematchTimer(),
     onViewChange: () => handleViewOrStateChange(),
     subscribe: (fn) => {
       arenaListeners.push(fn);

@@ -359,10 +359,7 @@
       }
 
       if (this.isAutoShoot) {
-        const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
-        const activeP = players.find(p => p.id === this.activePlayerId);
-        const pName = activeP ? activeP.name.toUpperCase() : 'STRIKER';
-        this.setKickerStatus('ready', `⚡ ${pName} READY • PREPARING STRIKE...`);
+        this.setKickerStatus('ready');
         this.scheduleNextAutoKick(2000);
       }
     }
@@ -1368,14 +1365,16 @@
           this.resetBall();
           this.resetKeeper();
           if (this.isAutoShoot) {
-            const nextP = players.find(p => p.id === this.activePlayerId);
-            const nextName = nextP ? nextP.name.toUpperCase() : 'STRIKER';
-            this.setKickerStatus('ready', `⚡ ${nextName} STEPPED UP • PREPARING STRIKE...`);
+            this.setKickerStatus('ready');
             this.scheduleNextAutoKick(2200);
           }
         } else {
-          this.isAutoShoot = false;
-          this.updateAutoShootUI();
+          // Target complete! Match won!
+          const winName = currentActiveP ? currentActiveP.name.toUpperCase() : 'CHAMPION';
+          this.setKickerStatus('goal', `🏆 ${winName} WON THE MATCH!`);
+          if (!this.isAutoShoot) {
+            this.updateAutoShootUI();
+          }
         }
       }, celebrationDuration);
     }
@@ -1460,14 +1459,14 @@
 
       if (this.isAutoShoot) {
         if (this.isOpen && this.ball.state === 'ready') {
-          const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
-          const activeP = players.find(p => p.id === this.activePlayerId);
-          const pName = activeP ? activeP.name.toUpperCase() : 'STRIKER';
-          this.setKickerStatus('ready', `⚡ ${pName} READY • PREPARING STRIKE...`);
+          this.setKickerStatus('ready');
           this.scheduleNextAutoKick(1800);
         }
       } else {
         this.clearAutoShootTimers();
+        if (window.arenaApp && window.arenaApp.clearAutoRematchTimer) {
+          window.arenaApp.clearAutoRematchTimer();
+        }
       }
     }
 
@@ -1495,16 +1494,12 @@
 
       if (!this.isOpen || !this.isAutoShoot) return;
 
-      const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
-      const activeP = players.find(p => p.id === this.activePlayerId);
-      const pName = activeP ? activeP.name.toUpperCase() : 'STRIKER';
-
       // Halfway through preparation, show aiming anticipation & run-up posture
       const prepDelay = Math.max(700, Math.floor(delay * 0.52));
       this.autoShootPrepTimer = setTimeout(() => {
         this.autoShootPrepTimer = null;
         if (!this.isOpen || !this.isAutoShoot || this.ball.state !== 'ready') return;
-        this.setKickerStatus('aiming', `🎯 ${pName} AIMING & PREPARING RUN-UP...`);
+        this.setKickerStatus('aiming');
         this.kicker.legAngle = 0.28;
       }, prepDelay);
 
