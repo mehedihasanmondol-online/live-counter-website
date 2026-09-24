@@ -372,14 +372,169 @@ body.stream-mode .app-header:hover {
   position: relative;
 }
 
+/* 3-Dot More Options Dropdown Menu Popover */
 .secondary-actions-group {
-  display: flex;
-  align-items: center;
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background: linear-gradient(180deg, rgba(14, 20, 36, 0.98) 0%, rgba(8, 12, 22, 0.99) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 14px;
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.95), 0 0 25px rgba(0, 240, 255, 0.2);
+  padding: 10px;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
+  min-width: 235px;
+  z-index: 10000;
 }
 
+.secondary-actions-group.show {
+  display: flex;
+  animation: menuFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.secondary-actions-group .secondary-action-item {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 8px 12px;
+  height: 38px;
+  font-size: 0.84rem;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.secondary-actions-group select.action-btn {
+  width: 100%;
+  height: 38px;
+}
+
+/* 3-Dot Menu Toggle Button */
 .header-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.header-more-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.header-more-btn.active-auto {
+  border-color: var(--accent-emerald);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.35);
+  color: #00ff88;
+}
+
+.header-more-badge {
   display: none;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-emerald);
+  box-shadow: 0 0 8px #00ff88;
+  animation: pulseBeacon 1.4s infinite;
+}
+
+.header-more-btn.active-auto .header-more-badge {
+  display: block;
+}
+
+@keyframes pulseBeacon {
+  0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px #00ff88; }
+  50% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 10px #00ff88; }
+  100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px #00ff88; }
+}
+
+/* Auto Play Action Button inside 3-Dot Menu */
+.auto-play-action-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between !important;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.auto-play-action-btn:hover {
+  background: rgba(0, 240, 255, 0.08);
+  border-color: rgba(0, 240, 255, 0.3);
+}
+
+.auto-play-action-btn.active {
+  background: rgba(0, 255, 136, 0.12);
+  border-color: rgba(0, 255, 136, 0.45);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.2);
+}
+
+.auto-play-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+}
+
+.auto-play-btn-left svg {
+  color: var(--accent-cyan);
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.auto-play-action-btn.active .auto-play-btn-left svg {
+  color: var(--accent-emerald);
+  transform: scale(1.15);
+}
+
+.auto-play-toggle-pill {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all var(--transition-fast);
+}
+
+.auto-play-toggle-pill.active {
+  background: rgba(0, 255, 136, 0.25);
+  color: #00ff88;
+  border-color: rgba(0, 255, 136, 0.6);
+  box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
+}
+
+/* Floating Golden Goal Button when Auto Play Active */
+.random-goal-floating-btn.auto-playing {
+  box-shadow: 0 0 24px rgba(0, 255, 136, 0.45), 0 8px 30px rgba(0, 0, 0, 0.6) !important;
+  border-color: rgba(0, 255, 136, 0.7) !important;
+}
+
+.random-goal-floating-btn.auto-playing .random-pulse-ring {
+  border-color: #00ff88;
 }
 
 .action-btn {

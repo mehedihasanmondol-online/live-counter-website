@@ -80,7 +80,14 @@
   const fullscreenBtn = document.getElementById('fullscreen-btn');
   const exitStreamBtn = document.getElementById('exit-stream-btn');
   const headerMoreBtn = document.getElementById('header-more-btn');
+  const headerMoreBadge = document.getElementById('header-more-badge');
   const secondaryActionsGroup = document.getElementById('secondary-actions-group');
+  const autoPlayBtn = document.getElementById('auto-play-btn');
+  const autoPlayTogglePill = document.getElementById('auto-play-toggle-pill');
+
+  let isAutoPlayActive = false;
+  let autoPlayTimer = null;
+  let autoPlayWatchdog = null;
 
   // Modals
   const winnerModal = document.getElementById('winner-modal');
@@ -122,8 +129,10 @@
     renderArena();
     updateTimerDisplay();
     updateSoundButton();
+    updateAutoPlayUI();
     setupEventListeners();
     setupKeyboardHotkeys();
+    setupAutoPlayEngine();
   }
 
   function saveState() {
@@ -132,6 +141,7 @@
       localStorage.setItem('live_counter_target', targetScore.toString());
       localStorage.setItem('live_counter_initial_score', initialScore.toString());
       localStorage.setItem('live_counter_theme', currentTheme);
+      localStorage.setItem('live_counter_autoplay', isAutoPlayActive ? 'true' : 'false');
     } catch (e) {
       console.warn('Storage save failed:', e);
     }
@@ -169,6 +179,11 @@
       const savedTheme = localStorage.getItem('live_counter_theme');
       if (savedTheme) {
         setTheme(savedTheme);
+      }
+
+      const savedAutoPlay = localStorage.getItem('live_counter_autoplay');
+      if (savedAutoPlay === 'true') {
+        isAutoPlayActive = true;
       }
     } catch (e) {
       players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
@@ -769,6 +784,9 @@
     const selection = pickGoldenGoalWinner(players);
     if (!selection) {
       isRandomShuffling = false;
+      if (isAutoPlayActive) {
+        scheduleNextAutoPlay(3000);
+      }
       return;
     }
     const winnerPlayer = selection.player;
@@ -992,11 +1010,160 @@
         const titleEl = randomGoalBtn.querySelector('.random-title');
         const subEl = randomGoalBtn.querySelector('.random-subtitle');
         if (titleEl) titleEl.innerText = 'GOLDEN GOAL';
-        if (subEl) subEl.innerText = 'INSTANT STRIKE • +1 GOAL';
+        if (subEl) subEl.innerText = isAutoPlayActive ? '⚡ AUTO ACTIVE • +1 GOAL' : 'INSTANT STRIKE • +1 GOAL';
       }
 
       isRandomShuffling = false;
+
+      // Automatically schedule next strike if Auto Play is active & home page active
+      if (isAutoPlayActive && isHomePageActive()) {
+        scheduleNextAutoPlay(2000);
+      }
     }, 1800);
+  }
+
+  /* ==========================================================================
+     Golden Goal Auto Play Engine
+     Runs Golden Goal automatically when Auto Play is enabled & Home Page is active
+     ========================================================================== */
+
+  function isHomePageActive() {
+    // 1. Penalty Shootout arena must NOT be active/open
+    if (window.penaltyGame && window.penaltyGame.isOpen) return false;
+    const penaltyModal = document.getElementById('penalty-modal');
+    if (penaltyModal && penaltyModal.classList.contains('show')) return false;
+
+    // 2. Winner celebration modal must NOT be open
+    if (winnerModal && winnerModal.classList.contains('show')) return false;
+
+    // 3. Player customization modal must NOT be open
+    if (playerModal && playerModal.classList.contains('show')) return false;
+
+    // 4. Keyboard shortcuts help modal must NOT be open
+    if (shortcutsModal && shortcutsModal.classList.contains('show')) return false;
+
+    // 5. Browser tab must be visible
+    if (document.hidden) return false;
+
+    // 6. Arena must contain active players
+    if (!players || players.length === 0) return false;
+
+    // 7. Match must not already be won (unless target is endless/0)
+    if (targetScore > 0 && players.some(p => p.score >= targetScore)) return false;
+
+    return true;
+  }
+
+  function updateAutoPlayUI() {
+    if (autoPlayBtn) {
+      autoPlayBtn.classList.toggle('active', isAutoPlayActive);
+    }
+    if (autoPlayTogglePill) {
+      autoPlayTogglePill.classList.toggle('active', isAutoPlayActive);
+      autoPlayTogglePill.innerText = isAutoPlayActive ? 'ON' : 'OFF';
+    }
+    if (headerMoreBtn) {
+      headerMoreBtn.classList.toggle('active-auto', isAutoPlayActive);
+    }
+    if (randomGoalBtn) {
+      randomGoalBtn.classList.toggle('auto-playing', isAutoPlayActive);
+      const subEl = randomGoalBtn.querySelector('.random-subtitle');
+      if (subEl && !isRandomShuffling) {
+        subEl.innerText = isAutoPlayActive ? '⚡ AUTO ACTIVE • +1 GOAL' : 'INSTANT STRIKE • +1 GOAL';
+      }
+    }
+  }
+
+  function toggleAutoPlay(forceVal = null) {
+    if (forceVal !== null) {
+      isAutoPlayActive = !!forceVal;
+    } else {
+      isAutoPlayActive = !isAutoPlayActive;
+    }
+
+    saveState();
+    updateAutoPlayUI();
+
+    if (window.soundEngine && window.soundEngine.playIncrement) {
+      window.soundEngine.playIncrement();
+    }
+
+    if (isAutoPlayActive) {
+      // If home page is currently active, schedule first automatic strike
+      if (isHomePageActive() && !isRandomShuffling && !autoPlayTimer) {
+        scheduleNextAutoPlay(400);
+      }
+    } else {
+      // Cancel pending automatic strikes
+      if (autoPlayTimer) {
+        clearTimeout(autoPlayTimer);
+        autoPlayTimer = null;
+      }
+    }
+  }
+
+  function scheduleNextAutoPlay(delay = 2000) {
+    if (autoPlayTimer) {
+      clearTimeout(autoPlayTimer);
+      autoPlayTimer = null;
+    }
+
+    if (!isAutoPlayActive || !isHomePageActive()) {
+      return;
+    }
+
+    autoPlayTimer = setTimeout(() => {
+      autoPlayTimer = null;
+      if (!isAutoPlayActive || !isHomePageActive() || isRandomShuffling) {
+        return;
+      }
+      startRandomGoalShuffle();
+    }, delay);
+  }
+
+  function handleViewOrStateChange() {
+    if (!isAutoPlayActive) return;
+
+    if (!isHomePageActive()) {
+      // Home page is inactive (e.g. user entered Penalty Shootout, Winner modal, etc.)
+      if (autoPlayTimer) {
+        clearTimeout(autoPlayTimer);
+        autoPlayTimer = null;
+      }
+    } else {
+      // Home page is active! If not currently in a shuffle animation and nothing scheduled, resume
+      if (!isRandomShuffling && !autoPlayTimer) {
+        scheduleNextAutoPlay(1000);
+      }
+    }
+  }
+
+  function setupAutoPlayEngine() {
+    // Visibility change listener: pause when switching tabs, resume when returning
+    document.addEventListener('visibilitychange', () => {
+      handleViewOrStateChange();
+    });
+
+    // Custom event listener for penalty game or other sub-system changes
+    window.addEventListener('penaltyGameClosed', () => {
+      handleViewOrStateChange();
+    });
+    window.addEventListener('penaltyGameOpened', () => {
+      handleViewOrStateChange();
+    });
+
+    // Periodic watchdog check to ensure auto-play is seamlessly resilient across any edge conditions
+    if (autoPlayWatchdog) clearInterval(autoPlayWatchdog);
+    autoPlayWatchdog = setInterval(() => {
+      if (isAutoPlayActive && isHomePageActive() && !isRandomShuffling && !autoPlayTimer) {
+        scheduleNextAutoPlay(1500);
+      }
+    }, 1500);
+
+    // Initial trigger if Auto Play was saved as active
+    if (isAutoPlayActive && isHomePageActive()) {
+      scheduleNextAutoPlay(1200);
+    }
   }
 
   /* ==========================================================================
@@ -1084,9 +1251,10 @@
 
   function updateSoundButton() {
     const muted = window.soundEngine ? window.soundEngine.isMuted() : false;
-    soundToggleBtn.innerHTML = muted
+    const iconSvg = muted
       ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"></line><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>`
       : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+    soundToggleBtn.innerHTML = `${iconSvg}<span class="menu-item-text" id="sound-btn-text">Sound: ${muted ? 'MUTED' : 'ON'}</span>`;
   }
 
   /* ==========================================================================
@@ -1389,10 +1557,24 @@
     });
 
     // Shortcuts modal
-    shortcutsBtn.addEventListener('click', () => shortcutsModal.classList.add('show'));
-    closeShortcutsBtn.addEventListener('click', () => shortcutsModal.classList.remove('show'));
+    shortcutsBtn.addEventListener('click', () => {
+      shortcutsModal.classList.add('show');
+      handleViewOrStateChange();
+    });
+    closeShortcutsBtn.addEventListener('click', () => {
+      shortcutsModal.classList.remove('show');
+      handleViewOrStateChange();
+    });
 
-    // Header More Options Popover Menu (Mobile Landscape / Compact)
+    // Auto Play action button in 3-dot menu
+    if (autoPlayBtn) {
+      autoPlayBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Keep menu open so user sees toggle state change
+        toggleAutoPlay();
+      });
+    }
+
+    // Header More Options Popover Menu (3-Dot Menu)
     if (headerMoreBtn && secondaryActionsGroup) {
       headerMoreBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1412,6 +1594,7 @@
       goldenGoalLastWinnerId = null;
       goldenGoalStreak = 0;
       undoStack = [];
+      winner = null;
       saveState();
       winnerModal.classList.remove('show');
       if (window.confettiEngine) window.confettiEngine.clear();
@@ -1422,10 +1605,12 @@
         window.penaltyGame.hideOutcomeBanner();
         window.penaltyGame.updateStatsUI();
       }
+      handleViewOrStateChange();
     });
 
     closeWinnerBtn.addEventListener('click', () => {
       winnerModal.classList.remove('show');
+      winner = null;
       if (window.confettiEngine) window.confettiEngine.clear();
       if (window.penaltyGame && window.penaltyGame.isOpen) {
         window.penaltyGame.resetBall();
@@ -1433,11 +1618,13 @@
         window.penaltyGame.hideOutcomeBanner();
         window.penaltyGame.updateStatsUI();
       }
+      handleViewOrStateChange();
     });
 
     winnerModal.addEventListener('click', (e) => {
       if (e.target === winnerModal) {
         winnerModal.classList.remove('show');
+        winner = null;
         if (window.confettiEngine) window.confettiEngine.clear();
         if (window.penaltyGame && window.penaltyGame.isOpen) {
           window.penaltyGame.resetBall();
@@ -1445,13 +1632,23 @@
           window.penaltyGame.hideOutcomeBanner();
           window.penaltyGame.updateStatsUI();
         }
+        handleViewOrStateChange();
       }
     });
 
     // Player editor modal buttons
-    savePlayerBtn.addEventListener('click', savePlayer);
-    deletePlayerBtn.addEventListener('click', deletePlayer);
-    cancelPlayerBtn.addEventListener('click', () => playerModal.classList.remove('show'));
+    savePlayerBtn.addEventListener('click', () => {
+      savePlayer();
+      handleViewOrStateChange();
+    });
+    deletePlayerBtn.addEventListener('click', () => {
+      deletePlayer();
+      handleViewOrStateChange();
+    });
+    cancelPlayerBtn.addEventListener('click', () => {
+      playerModal.classList.remove('show');
+      handleViewOrStateChange();
+    });
 
     // Goal sound preview button in player modal
     if (previewGoalSoundBtn && playerGoalSoundSelect) {
@@ -1500,6 +1697,13 @@
       // Space or G -> Golden Goal Strike
       if ((e.code === 'Space' || e.key === 'g' || e.key === 'G') && !e.ctrlKey && !e.altKey) {
         startRandomGoalShuffle();
+        e.preventDefault();
+        return;
+      }
+
+      // A -> Toggle Auto Play Golden Goal
+      if ((e.key === 'a' || e.key === 'A') && !e.ctrlKey && !e.altKey) {
+        toggleAutoPlay();
         e.preventDefault();
         return;
       }
@@ -1582,6 +1786,10 @@
     getTargetScore: () => targetScore,
     getInitialScore: () => initialScore,
     setInitialScore: (val, update) => setInitialScore(val, update),
+    isAutoPlayActive: () => isAutoPlayActive,
+    toggleAutoPlay: (force) => toggleAutoPlay(force),
+    isHomePageActive: () => isHomePageActive(),
+    onViewChange: () => handleViewOrStateChange(),
     subscribe: (fn) => {
       arenaListeners.push(fn);
       try {

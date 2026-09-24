@@ -17,7 +17,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
   <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
-  <link rel="stylesheet" href="style.css?v=1.2.0">
+  <link rel="stylesheet" href="style.css?v=1.2.1">
 </head>
 <body>
 
@@ -121,8 +121,19 @@
       </button>
 
 
-      <!-- Secondary Actions Group (Direct on desktop, popover dropdown on mobile) -->
+      <!-- Secondary Actions Group (3-Dot Dropdown Menu Popover) -->
       <div class="secondary-actions-group" id="secondary-actions-group">
+        <!-- Golden Goal Auto Play Toggle Action -->
+        <button class="action-btn secondary-action-item auto-play-action-btn" id="auto-play-btn" title="Toggle Golden Goal Auto Play (Key: A)">
+          <div class="auto-play-btn-left">
+            <svg class="auto-play-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span class="menu-item-text">Auto Play</span>
+          </div>
+          <span class="auto-play-toggle-pill" id="auto-play-toggle-pill">OFF</span>
+        </button>
+
         <!-- Theme / Chroma Picker for OBS -->
         <select class="action-btn secondary-action-item" id="theme-select" title="Background Theme & OBS Chroma Modes" style="background: rgba(255,255,255,0.06); outline: none; border-radius: 10px; cursor: pointer;">
           <option value="default">🎨 Broadcast Dark</option>
@@ -132,38 +143,42 @@
         </select>
 
         <!-- OBS Stream Overlay Clean Mode -->
-        <button class="action-btn icon-only secondary-action-item" id="stream-toggle-btn" title="OBS Clean Stream Overlay Mode (H)">
+        <button class="action-btn secondary-action-item" id="stream-toggle-btn" title="OBS Clean Stream Overlay Mode (H)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
             <circle cx="12" cy="12" r="3"></circle>
           </svg>
+          <span class="menu-item-text">Clean Stream Mode (H)</span>
         </button>
 
         <!-- Sound Toggle -->
-        <button class="action-btn icon-only secondary-action-item" id="sound-toggle-btn" title="Toggle Sound FX (M)">
+        <button class="action-btn secondary-action-item" id="sound-toggle-btn" title="Toggle Sound FX (M)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
             <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
           </svg>
+          <span class="menu-item-text" id="sound-btn-text">Sound: ON</span>
         </button>
 
         <!-- Shortcuts / Help -->
-        <button class="action-btn icon-only secondary-action-item" id="shortcuts-btn" title="Shortcuts & Gestures Help (?)">
+        <button class="action-btn secondary-action-item" id="shortcuts-btn" title="Shortcuts & Gestures Help (?)">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"></circle>
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
             <line x1="12" y1="17" x2="12.01" y2="17"></line>
           </svg>
+          <span class="menu-item-text">Shortcuts & Help (?)</span>
         </button>
       </div>
 
-      <!-- More Menu Toggle Button (Visible on mobile/compact screens) -->
-      <button class="action-btn icon-only header-more-btn" id="header-more-btn" title="More Settings & Options">
+      <!-- More Menu Toggle Button (3-Dot Menu) -->
+      <button class="action-btn icon-only header-more-btn" id="header-more-btn" title="More Options & Auto Play (3-Dot Menu)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="12" cy="5" r="2"></circle>
           <circle cx="12" cy="12" r="2"></circle>
           <circle cx="12" cy="19" r="2"></circle>
         </svg>
+        <span class="header-more-badge" id="header-more-badge"></span>
       </button>
     </div>
   </header>
@@ -330,6 +345,10 @@
             <span>Golden Goal Strike</span>
             <span class="key-kbd">Space / G</span>
           </div>
+          <div class="shortcut-item">
+            <span>Auto Play Golden Goal</span>
+            <span class="key-kbd">A</span>
+          </div>
         </div>
         <div class="modal-actions" style="margin-top: 14px;">
           <button class="modal-btn primary" id="close-shortcuts-btn">Got It!</button>
@@ -494,11 +513,11 @@
     <button class="pwa-update-btn" id="pwa-update-btn">UPDATE NOW</button>
   </div>
 
-  <!-- Scripts (Cache-Busted with ?v=1.2.0) -->
-  <script src="audio.js?v=1.2.0"></script>
-  <script src="confetti.js?v=1.2.0"></script>
-  <script src="app.js?v=1.2.0"></script>
-  <script src="penalty-game.js?v=1.2.0"></script>
-  <script src="pwa.js?v=1.2.0"></script>
+  <!-- Scripts (Cache-Busted with ?v=1.2.1) -->
+  <script src="audio.js?v=1.2.1"></script>
+  <script src="confetti.js?v=1.2.1"></script>
+  <script src="app.js?v=1.2.1"></script>
+  <script src="penalty-game.js?v=1.2.1"></script>
+  <script src="pwa.js?v=1.2.1"></script>
 </body>
 </html>

@@ -315,6 +315,11 @@
       this.modalEl.classList.add('show');
       document.body.classList.add('penalty-active');
 
+      if (window.arenaApp && window.arenaApp.onViewChange) {
+        window.arenaApp.onViewChange();
+      }
+      window.dispatchEvent(new CustomEvent('penaltyGameOpened'));
+
       const players = window.arenaApp ? window.arenaApp.getPlayers() : [];
       this.preloadPlayerImages(players);
       this.syncActivePlayer();
@@ -339,6 +344,11 @@
       this.isOpen = false;
       this.modalEl.classList.remove('show');
       document.body.classList.remove('penalty-active');
+
+      if (window.arenaApp && window.arenaApp.onViewChange) {
+        window.arenaApp.onViewChange();
+      }
+      window.dispatchEvent(new CustomEvent('penaltyGameClosed'));
 
       if (this.animId) {
         cancelAnimationFrame(this.animId);
