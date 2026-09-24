@@ -597,11 +597,28 @@
           cardEl.style.boxShadow = `0 12px 35px rgba(0, 0, 0, 0.7), 0 0 25px ${activeP.color}33`;
         }
         if (numberEl) {
-          const numMatch = (activeP.tag || '').match(/\d+/);
-          numberEl.innerText = numMatch ? numMatch[0] : (activeP.name.includes('Messi') ? '10' : '7');
+          numberEl.innerText = this.getJerseyNumber(activeP);
           numberEl.style.background = activeP.color;
         }
       }
+    }
+
+    getJerseyNumber(activeP) {
+      if (!activeP) return '10';
+      const rawTag = (activeP.tag || '').trim();
+      if (rawTag) {
+        // If tag is compact without spaces (e.g. "CR7", "10", "7", "R9", "99", "P1"), use it directly
+        if (rawTag.length <= 4 && !/\s/.test(rawTag)) {
+          return rawTag.toUpperCase();
+        }
+        // If tag has spaces (e.g. "LEO 10", "NO. 7", "PLAYER 3"), extract the number digits
+        const numMatch = rawTag.match(/\d+/);
+        if (numMatch) return numMatch[0];
+        return rawTag.slice(0, 4).toUpperCase();
+      }
+      // Fallback if tag is empty
+      const nameHasMessi = activeP.name && activeP.name.toLowerCase().includes('messi');
+      return nameHasMessi ? '10' : '7';
     }
 
     updateKickerBorderState(hasResult = false) {
@@ -2208,13 +2225,31 @@
       ctx.roundRect(-15, -28, 30, 28, 6);
       ctx.fill();
 
-      // Number on back/chest
-      ctx.fillStyle = '#080c16';
-      ctx.font = 'bold 11px Outfit, sans-serif';
+      // Number on back/chest - taken directly from player tag
+      const jerseyNum = this.getJerseyNumber(activeP);
+
+      // Dynamic font sizing based on length to fit torso gracefully
+      let fontSize = 12;
+      if (jerseyNum.length === 1) fontSize = 13;
+      else if (jerseyNum.length === 2) fontSize = 11.5;
+      else if (jerseyNum.length === 3) fontSize = 10;
+      else fontSize = 9;
+
+      ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
       ctx.textAlign = 'center';
-      const numMatch = (activeP.tag || '').match(/\d+/);
-      const jerseyNum = numMatch ? numMatch[0] : (activeP.name.includes('Messi') ? '10' : '7');
-      ctx.fillText(jerseyNum, 0, -10);
+      ctx.textBaseline = 'middle';
+
+      // High contrast jersey number color (crisp white on dark kits, dark on light kits)
+      const isLightColor = (hex) => {
+        if (!hex || !hex.startsWith('#')) return false;
+        const c = hex.replace('#', '');
+        const r = parseInt(c.substr(0, 2), 16) || 0;
+        const g = parseInt(c.substr(2, 2), 16) || 0;
+        const b = parseInt(c.substr(4, 2), 16) || 0;
+        return (r * 299 + g * 587 + b * 114) / 1000 > 155;
+      };
+      ctx.fillStyle = isLightColor(activeP.color) ? '#080c16' : '#ffffff';
+      ctx.fillText(jerseyNum, 0, -14);
 
       // Arms
       ctx.fillStyle = activeP.color || '#00f0ff';
