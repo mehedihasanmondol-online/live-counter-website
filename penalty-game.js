@@ -77,10 +77,21 @@
         kickProgress: 0,
         isKicking: false,
         kickTime: 0,
-        kickDuration: 0.44,
+        kickDuration: 0.50,
         power: 1.0,
+        hasImpacted: false,
+        impactRatio: 0.28,
+        initialThigh: 0,
+        initialKnee: 0,
+        currentThigh: 0,
+        currentKnee: 0,
         breathTimer: 0
       };
+
+      // Physical impact particles & deferred launch kinetics
+      this.impactParticles = [];
+      this.pendingShot = null;
+      this.onKickImpact = null;
 
       // Goalkeeper state
       this.keeper = {
@@ -816,18 +827,100 @@
       this.kicker.kickProgress = 0;
       this.kicker.isKicking = false;
       this.kicker.kickTime = 0;
+      this.kicker.hasImpacted = false;
+      this.kicker.currentThigh = 0;
+      this.kicker.currentKnee = 0;
+      this.onKickImpact = null;
+      this.pendingShot = null;
+      this.impactParticles = [];
 
       this.setKickerStatus('ready');
       this.hideOutcomeBanner();
       this.updateKickerBorderState(false);
     }
 
-    triggerKickingAction(power = 1.0) {
+    triggerKickingAction(power = 1.0, onImpact = null) {
       this.kicker.isKicking = true;
       this.kicker.kickProgress = 0;
       this.kicker.kickTime = 0;
-      this.kicker.kickDuration = 0.44;
+      this.kicker.kickDuration = 0.50; // 500ms realistic full strike cycle
       this.kicker.power = power;
+      this.kicker.hasImpacted = false;
+      this.kicker.impactRatio = 0.28; // Impact occurs at ~140ms after backswing load & snap
+      this.kicker.initialThigh = this.kicker.currentThigh || 0;
+      this.kicker.initialKnee = this.kicker.currentKnee || 0;
+      this.onKickImpact = onImpact;
+    }
+
+    executeBallImpact() {
+      if (!this.pendingShot) return;
+      const shot = this.pendingShot;
+      this.pendingShot = null;
+
+      this.ball.state = 'flying';
+      this.ball.vz = shot.vz;
+      this.ball.vx = shot.vx;
+      this.ball.vy = shot.vy;
+      this.ball.spin = shot.spin;
+
+      // Realistic turf strike particles & physical impulse
+      const spotY = this.penaltySpotY || (this.goal.bottom + (this.height - this.goal.bottom) * 0.30);
+      const groundY = spotY + this.ball.radius;
+      this.spawnImpactParticles(this.ball.x, groundY, shot.clampedPower);
+      this.screenShake = 3.6 * Math.min(shot.clampedPower, 1.3);
+
+      // Play audio at physical impact
+      if (this.soundEnabled && window.soundEngine && window.soundEngine.playKick) {
+        window.soundEngine.playKick(shot.clampedPower);
+      }
+
+      // Keeper dive initiates with the strike
+      this.triggerKeeperDive(shot.targetX, shot.targetY, shot.clampedPower, shot.forceKeeperDodge, shot.forceKeeperSave);
+    }
+
+    spawnImpactParticles(x, y, power = 1.0) {
+      this.impactParticles = [];
+      const count = Math.floor(10 + power * 8);
+      for (let i = 0; i < count; i++) {
+        const isChalk = i < 4;
+        const angle = -Math.PI * 0.45 + (Math.random() - 0.5) * 1.5;
+        const speed = (2.5 + Math.random() * 5.5) * (0.8 + power * 0.4);
+        this.impactParticles.push({
+          x: x + (Math.random() - 0.5) * 8,
+          y: y + (Math.random() - 0.5) * 4,
+          vx: Math.cos(angle) * speed + 1.2,
+          vy: Math.sin(angle) * speed - 1.2,
+          rot: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.4,
+          size: isChalk ? 1.5 + Math.random() * 2 : 2.5 + Math.random() * 3.5,
+          life: 1.0,
+          type: isChalk ? 'chalk' : 'grass',
+          color: isChalk ? '#ffffff' : (Math.random() < 0.6 ? '#22c55e' : '#16a34a')
+        });
+      }
+    }
+
+    drawImpactParticles(ctx) {
+      if (!this.impactParticles || this.impactParticles.length === 0) return;
+      ctx.save();
+      for (let i = 0; i < this.impactParticles.length; i++) {
+        const p = this.impactParticles[i];
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.life);
+        if (p.type === 'grass') {
+          ctx.fillRect(-p.size / 2, -1, p.size, 2.5);
+        } else {
+          // Chalk dust
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+      ctx.restore();
     }
 
     resetKeeper() {
@@ -976,13 +1069,11 @@
         return;
       }
 
-      this.ball.state = 'flying';
       this.lastKickTimestamp = Date.now();
       this.setKickerStatus('kicked');
 
       const clampedPower = Math.min(Math.max(power, 0.7), 1.5);
-      this.triggerKickingAction(clampedPower);
-      this.ball.vz = 0.024 * (0.8 + clampedPower * 0.4);
+      const vz = 0.024 * (0.8 + clampedPower * 0.4);
 
       // Aesthetic Magnus spin curl
       let spin = 0;
@@ -991,7 +1082,6 @@
       } else if (!forceKeeperSave) {
         spin = ((targetX - this.width / 2) / 100) * 0.12;
       }
-      this.ball.spin = spin;
 
       // Ballistic integration: calculate exact flight steps, gravity and Magnus curve drift
       let simZ = 0;
@@ -1000,21 +1090,24 @@
       let curVyGrav = 0;
       while (simZ < 1.0) {
         totalGravY += curVyGrav;
-        simZ += this.ball.vz;
+        simZ += vz;
         curVyGrav += 0.12 * (simZ * 1.5);
         steps++;
       }
-      const totalSpinX = (steps * (steps + 1) / 2) * (this.ball.spin * 0.35);
+      const totalSpinX = (steps * (steps + 1) / 2) * (spin * 0.35);
 
       // Calibrate initial vx and vy so ball arrives precisely at targetX and targetY when ball.z reaches 1.0
-      this.ball.vx = (targetX - this.ball.x - totalSpinX) / steps;
-      this.ball.vy = (targetY - this.ball.y - totalGravY) / steps;
+      const vx = (targetX - this.ball.x - totalSpinX) / steps;
+      const vy = (targetY - this.ball.y - totalGravY) / steps;
 
-      if (this.soundEnabled && window.soundEngine && window.soundEngine.playKick) {
-        window.soundEngine.playKick(clampedPower);
-      }
+      this.pendingShot = {
+        vx, vy, vz, spin, clampedPower,
+        targetX, targetY, forceKeeperDodge, forceKeeperSave
+      };
 
-      this.triggerKeeperDive(targetX, targetY, clampedPower, forceKeeperDodge, forceKeeperSave);
+      // Physical Cause & Effect: Striker winds up and drives leg forward, ball launches at impact
+      this.ball.state = 'striking';
+      this.triggerKickingAction(clampedPower, () => this.executeBallImpact());
     }
 
     launchBall(deltaX, deltaY, powerMag) {
@@ -1024,7 +1117,6 @@
         return;
       }
 
-      this.ball.state = 'flying';
       this.lastKickTimestamp = Date.now();
       this.setKickerStatus('kicked');
 
@@ -1045,17 +1137,20 @@
       const targetScreenX = (this.width / 2) + horizontalAimRatio * (this.goal.width * 0.52);
 
       const clampedPower = Math.min(Math.max(powerMag / 80, 0.65), 1.5);
-      this.triggerKickingAction(clampedPower);
-      this.ball.vz = 0.024 * (0.8 + clampedPower * 0.4);
-      this.ball.vx = (targetScreenX - this.ball.x) * this.ball.vz;
-      this.ball.vy = (targetScreenY - this.ball.y) * this.ball.vz;
-      this.ball.spin = (deltaX / 100) * 0.7;
+      const vz = 0.024 * (0.8 + clampedPower * 0.4);
+      const vx = (targetScreenX - this.ball.x) * vz;
+      const vy = (targetScreenY - this.ball.y) * vz;
+      const spin = (deltaX / 100) * 0.7;
 
-      if (this.soundEnabled && window.soundEngine && window.soundEngine.playKick) {
-        window.soundEngine.playKick(clampedPower);
-      }
+      this.pendingShot = {
+        vx, vy, vz, spin, clampedPower,
+        targetX: targetScreenX, targetY: targetScreenY,
+        forceKeeperDodge: false, forceKeeperSave: false
+      };
 
-      this.triggerKeeperDive(targetScreenX, targetScreenY, clampedPower);
+      // Physical Cause & Effect: Striker drives leg forward, ball launches at impact
+      this.ball.state = 'striking';
+      this.triggerKickingAction(clampedPower, () => this.executeBallImpact());
     }
 
     /* ==========================================================================
@@ -1143,8 +1238,34 @@
       if (this.kicker.isKicking) {
         this.kicker.kickTime += dt;
         this.kicker.kickProgress = Math.min(1.0, this.kicker.kickTime / this.kicker.kickDuration);
+
+        // Physical Impact Trigger: exact frame the boot strikes the ball
+        if (!this.kicker.hasImpacted && this.kicker.kickProgress >= this.kicker.impactRatio) {
+          this.kicker.hasImpacted = true;
+          if (this.onKickImpact) {
+            const impactFn = this.onKickImpact;
+            this.onKickImpact = null;
+            impactFn();
+          }
+        }
+
         if (this.kicker.kickProgress >= 1.0) {
           this.kicker.isKicking = false;
+        }
+      }
+
+      // Update physical turf particles
+      if (this.impactParticles && this.impactParticles.length > 0) {
+        for (let i = this.impactParticles.length - 1; i >= 0; i--) {
+          const p = this.impactParticles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.42;
+          p.life -= dt * 3.2;
+          p.rot += p.vRot;
+          if (p.life <= 0) {
+            this.impactParticles.splice(i, 1);
+          }
         }
       }
 
@@ -1719,7 +1840,10 @@
       // 7. Draw Ball Shadow & Ball
       this.drawBall(ctx);
 
-      // 8. Draw Aiming Reticle / Swipe Guide
+      // 8. Draw Turf Impact Particles & Chalk Burst
+      this.drawImpactParticles(ctx);
+
+      // 9. Draw Aiming Reticle / Swipe Guide
       this.drawAimingGuide(ctx);
 
       ctx.restore();
@@ -2439,289 +2563,389 @@
       const activeP = players.find(p => p.id === this.activePlayerId) || players[0];
       if (!activeP) return;
 
+      ctx.save(); // Isolate entire kicker rendering context
+
       const img = this.playerImages[activeP.id];
       const teamColor = activeP.color || '#00f0ff';
 
-      // Base anchor position anchored at the penalty spot
+      // Ground turf level & penalty spot geometry
       const spotX = this.width / 2;
       const spotY = this.penaltySpotY || (this.goal.bottom + (this.height - this.goal.bottom) * 0.30);
-      let kx = spotX - 32;
-      let ky = spotY + 4;
+      const ballRad = this.ball.radius || 22;
+      const groundY = spotY + ballRad;
 
-      // Determine Kicking Kinematics & Realistic Leg Action Dynamics
-      let kickSwing = 0;     // -0.8 (cocked back) to +1.2 (full forward strike & follow-through)
-      let kneeBend = 0;      // knee flexion angle
-      let plantFlex = 0;     // supporting plant leg knee absorption
-      let bodyLean = 0;      // torso tilt (-0.15 lean back to +0.15 lean forward)
-      let kickerShiftX = 0;  // step forward into strike
-      let kickerShiftY = 0;  // bounce / vertical elevation
-      let armLeftAngle = -0.15; // left arm balance angle
-      let armRightAngle = 0.15;  // right arm counter angle
+      // Real Soccer Proportions:
+      // Plant foot firmly on turf ~24px to the left of ball center
+      const plantFootX = spotX - 24;
+      const plantFootY = groundY;
+
+      // Pelvis / Hip Center: ~48px above plant foot
+      const hipCenterX = plantFootX + 8; // spotX - 16
+      const hipCenterY = groundY - 48;
+      const hipLX = hipCenterX - 6;
+      const hipRX = hipCenterX + 6; // spotX - 10 (directly beside the ball curve)
+
+      // ========================================================
+      // Biomechanical Double Pendulum Kinematics & Kinetic Chain
+      // ========================================================
+      let thighAngle = 0;   // Thigh rotation relative to vertical (rad)
+      let kneeFlex = 0;     // Knee flexion bending backward from thigh (rad)
+      let plantKneeBend = 0;// Plant knee flexion for athletic weight absorption
+      let trunkLean = 0;    // Torso forward/backward lean
+      let bodyElev = 0;     // Vertical rise on toes / jump
+      let armL = -0.22;     // Left balance arm angle
+      let armR = 0.22;      // Right counter-arm angle
 
       if (this.kicker.isKicking) {
         const p = this.kicker.kickProgress;
         const power = this.kicker.power || 1.0;
+        const pCock = 0.12;   // Dynamic backswing finishes at ~60ms
+        const pImp = this.kicker.impactRatio || 0.28; // Impact occurs at ~140ms
+        const pApex = 0.68;   // High follow-through apex at ~340ms
 
-        if (p < 0.22) {
-          // Phase 1: Powerful Strike Drive (0 to ~100ms)
-          // Kicking leg snaps violently forward through the ball!
-          const t = p / 0.22;
-          const snapT = t * t * (3 - 2 * t);
-          kickSwing = -0.65 * (1 - snapT) + 0.38 * snapT;
-          kneeBend = 0.55 * (1 - snapT); // knee snaps straight into impact
-          plantFlex = 0.3 * snapT;
-          bodyLean = 0.14 * snapT;
-          kickerShiftX = 11 * snapT;
-          kickerShiftY = -1.5 * Math.sin(snapT * Math.PI);
-          armLeftAngle = -0.15 - 0.45 * snapT; // left arm swings out for balance
-          armRightAngle = 0.15 - 0.35 * snapT;
-        } else if (p < 0.56) {
-          // Phase 2: High Athletic Follow-Through (100ms to ~250ms)
-          // Kicking leg rises high towards the goal in classic strike pose
-          const t = (p - 0.22) / 0.34;
-          const rise = Math.sin(t * Math.PI * 0.5);
-          const apex = 0.38 + (0.72 * Math.min(1.2, power)) * rise;
-          kickSwing = apex;
-          kneeBend = 0.06 * (1 - rise);
-          plantFlex = 0.3 * (1 - rise * 0.5);
-          bodyLean = 0.14 - 0.24 * rise; // torso leans back in follow-through
-          kickerShiftX = 11 + 2 * rise;
-          kickerShiftY = -3.5 * rise;
-          armLeftAngle = -0.60;
-          armRightAngle = -0.20;
-        } else if (p < 0.82) {
-          // Phase 3: Float at Apex & Gentle Deceleration (~250ms to ~360ms)
-          const t = (p - 0.56) / 0.26;
-          const apex = 0.38 + (0.72 * Math.min(1.2, power));
-          kickSwing = apex - (apex - 0.32) * (t * t);
-          kneeBend = 0.12 * t;
-          plantFlex = 0.15 * (1 - t);
-          bodyLean = -0.10 * (1 - t);
-          kickerShiftX = 13 - 3 * t;
-          kickerShiftY = -3.5 * (1 - t);
-          armLeftAngle = -0.60 + 0.35 * t;
-          armRightAngle = -0.20 + 0.25 * t;
+        const initThigh = this.kicker.initialThigh || 0;
+        const initKnee = this.kicker.initialKnee || 0;
+        const maxBackThigh = -0.76 * (0.8 + power * 0.2); // Hip cocked back ~43°
+        const maxBackKnee = 1.68;                          // Deep knee bend ~96° (heel to glute)
+
+        if (p < pCock) {
+          // --- Phase 0: Dynamic Backswing (Elastic Muscle Loading) ---
+          // Smooth Hermite S-curve from current stance into full backswing (no teleportation!)
+          const u = p / pCock;
+          const ease = u * u * (3 - 2 * u);
+          thighAngle = initThigh + (maxBackThigh - initThigh) * ease;
+          kneeFlex = initKnee + (maxBackKnee - initKnee) * ease;
+          plantKneeBend = 0.18 * ease;
+          trunkLean = 0.08 * ease;
+          armL = -0.22 - 0.25 * ease;
+          armR = 0.22 + 0.18 * ease;
+
+        } else if (p < pImp) {
+          // --- Phase 1: Proximal Hip Drive with Inertial Lower-Leg Lag ---
+          const v = (p - pCock) / (pImp - pCock);
+          // Quadratic acceleration of the thigh driven by hip flexors
+          const thighDrive = v * v;
+          thighAngle = maxBackThigh * (1 - thighDrive) + 0.24 * thighDrive;
+
+          // Double pendulum lag physics:
+          // Angular acceleration of thigh produces reactionary knee flexion torque
+          if (v < 0.60) {
+            // Lower leg lags behind, holding elastic potential energy
+            const lagRatio = v / 0.60;
+            kneeFlex = maxBackKnee - 0.18 * lagRatio;
+          } else {
+            // Explosive knee extension snap into ball impact!
+            const snap = (v - 0.60) / 0.40;
+            const snapEase = snap * (2 - snap); // Decelerating extension into lock
+            kneeFlex = (maxBackKnee - 0.18) * (1 - snapEase) + 0.05 * snapEase;
+          }
+
+          plantKneeBend = 0.18 + 0.16 * Math.sin(v * Math.PI);
+          trunkLean = 0.08 * (1 - v * 0.5);
+          armL = -0.47 - 0.25 * v; // Balance arm sweeps across chest
+          armR = 0.40 - 0.50 * v;
+
+        } else if (p < pApex) {
+          // --- Phase 2: High Follow-Through Arc & Angular Momentum Balance ---
+          const w = (p - pImp) / (pApex - pImp);
+          const rise = Math.sin(w * Math.PI * 0.5); // Sinusoidal deceleration to apex
+          const apexThigh = 0.24 + 0.62 * Math.min(1.3, power);
+
+          thighAngle = 0.24 + (apexThigh - 0.24) * rise;
+          kneeFlex = 0.05 * (1 - rise); // Fully extended knee in follow-through arc
+          trunkLean = 0.04 - 0.25 * rise; // Torso leans back to balance angular momentum (Newton's 3rd Law)
+          plantKneeBend = 0.34 * (1 - rise * 0.7);
+          bodyElev = -5.0 * rise * Math.min(1.25, power); // Striker elevates onto plant toes!
+          armL = -0.72; // Left arm extended wide across chest
+          armR = -0.22;
+
         } else {
-          // Phase 4: Recovery Landing (~360ms to 440ms)
-          const t = (p - 0.82) / 0.18;
-          const ease = t * (2 - t);
-          kickSwing = 0.32 * (1 - ease);
-          kneeBend = 0.12 * (1 - ease);
-          plantFlex = 0;
-          bodyLean = 0;
-          kickerShiftX = 10 * (1 - ease);
-          kickerShiftY = 0;
-          armLeftAngle = -0.25 * (1 - ease) - 0.15;
-          armRightAngle = 0.05 * ease + 0.10;
+          // --- Phase 3: Smooth Gravitational Recovery & Landing ---
+          const z = (p - pApex) / (1.0 - pApex);
+          const ease = z * z * (3 - 2 * z);
+          const apexThigh = 0.24 + 0.62 * Math.min(1.3, power);
+
+          thighAngle = apexThigh * (1 - ease) + 0.06 * ease;
+          kneeFlex = 0.05 * (1 - ease) + 0.06 * ease;
+          trunkLean = -0.21 * (1 - ease);
+          bodyElev = -5.0 * Math.min(1.25, power) * (1 - ease);
+          plantKneeBend = 0.10 * (1 - ease);
+          armL = -0.72 * (1 - ease) - 0.22 * ease;
+          armR = -0.22 * (1 - ease) + 0.22 * ease;
         }
+
       } else if (this.ball.state === 'aiming' || (this.isAutoShoot && this.autoShootPrepTimer)) {
         // Aiming / Preparation Run-Up & Backswing
-        const prep = Math.min(1.2, this.kicker.legAngle || 0.45);
-        kickSwing = -prep * 0.70; // Kicking leg drawn back
-        kneeBend = prep * 0.65;   // Knee cocked back
-        plantFlex = prep * 0.25;  // Plant knee flexed
-        bodyLean = prep * 0.12;   // Upper body focused forward
-        kickerShiftX = -prep * 8; // Step back for approach
-        kickerShiftY = prep * 2;
-        armLeftAngle = -0.15 - prep * 0.30;
-        armRightAngle = 0.15 + prep * 0.25;
+        const prep = Math.min(1.0, this.kicker.legAngle || 0.55);
+        thighAngle = -prep * 0.72; // Thigh cocked back ~42°
+        kneeFlex = prep * 1.62;    // Knee flexed ~93° (heel high near glute!)
+        plantKneeBend = prep * 0.26;
+        trunkLean = prep * 0.12;   // Torso focused forward
+        armL = -0.22 - prep * 0.35;
+        armR = 0.22 + prep * 0.25;
+
       } else if (this.ball.state === 'goal') {
-        // Goal Celebration: Victory Jump!
+        // Goal Celebration Victory Jump!
         const jumpPhase = Math.sin(Date.now() * 0.009);
-        kickerShiftY = -Math.abs(jumpPhase) * 16;
-        bodyLean = jumpPhase * 0.06;
-        kickSwing = jumpPhase * 0.25;
-        kneeBend = Math.abs(jumpPhase) * 0.35;
-        armLeftAngle = -1.2 + jumpPhase * 0.2; // Both arms raised high!
-        armRightAngle = 1.2 - jumpPhase * 0.2;
+        bodyElev = -Math.abs(jumpPhase) * 16;
+        trunkLean = jumpPhase * 0.06;
+        thighAngle = jumpPhase * 0.30;
+        kneeFlex = Math.abs(jumpPhase) * 0.40;
+        armL = -1.25 + jumpPhase * 0.2; // Both arms raised high in victory!
+        armR = 1.25 - jumpPhase * 0.2;
+
+      } else if (this.ball.state === 'saved' || this.ball.state === 'missed' || this.ball.state === 'post') {
+        // Disbelief & disappointment posture on missed/saved attempt
+        trunkLean = 0.16; // Head and torso hung forward
+        thighAngle = 0.06;
+        kneeFlex = 0.08;
+        armL = 0.10;
+        armR = 0.10;
+
       } else if (this.ball.state === 'flying') {
         // Watching ball flight in athletic stance
-        kickerShiftX = 8;
-        bodyLean = 0.05;
-        armLeftAngle = -0.3;
-        armRightAngle = 0.1;
+        thighAngle = 0.12;
+        kneeFlex = 0.05;
+        trunkLean = 0.04;
+        armL = -0.38;
+        armR = 0.16;
+
       } else {
-        // Idle Ready Stance
+        // Idle Ready Stance (subtle breathing rhythm)
         const breath = Math.sin(this.kicker.breathTimer) * 1.2;
-        kickerShiftY = breath;
+        bodyElev = breath;
       }
 
-      kx += kickerShiftX;
-      ky += kickerShiftY;
+      // ========================================================
+      // Limb Segment Contour Renderer Helper
+      // ========================================================
+      const drawLimbSegment = (x1, y1, x2, y2, w1, w2, baseColor, shadeColor = null) => {
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+        if (len < 0.5) return;
+        const nx = -dy / len;
+        const ny = dx / len;
 
-      ctx.save();
-      ctx.translate(kx, ky);
+        ctx.beginPath();
+        ctx.moveTo(x1 + nx * (w1 * 0.5), y1 + ny * (w1 * 0.5));
+        ctx.lineTo(x2 + nx * (w2 * 0.5), y2 + ny * (w2 * 0.5));
+        ctx.arc(x2, y2, w2 * 0.5, Math.atan2(ny, nx), Math.atan2(-ny, -nx));
+        ctx.lineTo(x1 - nx * (w1 * 0.5), y1 - ny * (w1 * 0.5));
+        ctx.arc(x1, y1, w1 * 0.5, Math.atan2(-ny, -nx), Math.atan2(ny, nx));
+        ctx.closePath();
+        ctx.fillStyle = baseColor;
+        ctx.fill();
 
-      // ==========================================
-      // 1. Dynamic Pitch Turf Shadows
-      // ==========================================
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
-      // Plant Foot Shadow (left foot on ground)
+        if (shadeColor) {
+          ctx.save();
+          ctx.clip();
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.lineTo(x2 + nx * (w2 * 0.5), y2 + ny * (w2 * 0.5));
+          ctx.lineTo(x1 + nx * (w1 * 0.5), y1 + ny * (w1 * 0.5));
+          ctx.closePath();
+          ctx.fillStyle = shadeColor;
+          ctx.fill();
+          ctx.restore();
+        }
+      };
+
+      // ========================================================
+      // 1. Dynamic Pitch Turf Shadows (Physics-based Contact & Altitude)
+      // ========================================================
+
+      // Plant Foot Ground Shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
       ctx.beginPath();
-      ctx.ellipse(-6, 26, 11, 4.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(plantFootX, groundY, 13, 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Right Kicking Leg Joint Calculations
-      const hipRX = 6;
-      const hipRY = 7;
-      const thighAngle = kickSwing * 0.72;
-      const thighLen = 10;
-      const kneeRX = hipRX + Math.sin(thighAngle) * thighLen;
-      const kneeRY = hipRY + Math.cos(thighAngle) * thighLen;
+      // Kicking Leg Joint Calculations
+      const thighLen = 23;
+      const shinLen = 23;
+      const hipRY_elev = hipCenterY + bodyElev;
 
-      const shinAngle = thighAngle + (kickSwing > 0 ? (kickSwing * 0.25 - kneeBend * 0.15) : (kneeBend * 0.75));
-      const shinLen = 10;
+      const kneeRX = hipRX + Math.sin(thighAngle) * thighLen;
+      const kneeRY = hipRY_elev + Math.cos(thighAngle) * thighLen;
+
+      const shinAngle = thighAngle - kneeFlex;
       const ankleRX = kneeRX + Math.sin(shinAngle) * shinLen;
       const ankleRY = kneeRY + Math.cos(shinAngle) * shinLen;
 
-      // Kicking Foot Shadow (moves and scales with elevation)
-      const footElevation = Math.max(0, 26 - ankleRY);
-      const kShadowAlpha = Math.max(0.08, 0.45 - footElevation * 0.025);
-      const kShadowScale = Math.max(0.35, 1.0 - footElevation * 0.04);
+      // Ankle boot angle locked in instep plantarflexion
+      const bootAngle = shinAngle + (kneeFlex > 0.5 ? -0.2 : 0.35);
+
+      // Kicking Foot Shadow (moves horizontally with foot, softens & expands with elevation)
+      const footElevation = Math.max(0, groundY - ankleRY);
+      const kShadowAlpha = Math.max(0.06, 0.45 - footElevation * 0.015);
+      const kShadowScale = Math.max(0.40, 1.0 - footElevation * 0.02);
       ctx.fillStyle = `rgba(0, 0, 0, ${kShadowAlpha})`;
       ctx.beginPath();
-      ctx.ellipse(ankleRX, 26, 11 * kShadowScale, 4.5 * kShadowScale, 0, 0, Math.PI * 2);
+      ctx.ellipse(ankleRX, groundY, 13 * kShadowScale, 5 * kShadowScale, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // ==========================================
-      // 2. Left Plant Leg (Supporting Leg)
-      // ==========================================
-      const hipLX = -6;
-      const hipLY = 7;
-      const plantKneeX = hipLX - plantFlex * 3;
-      const plantKneeY = 16 + plantFlex * 2;
-      const plantAnkleX = -6;
-      const plantAnkleY = 24;
+      // ========================================================
+      // 2. Left Plant Leg (Supporting Athletic Leg)
+      // ========================================================
+      const hipLY_elev = hipCenterY + bodyElev;
+      const plantKneeX = hipLX - 3 - plantKneeBend * 5;
+      const plantKneeY = hipLY_elev + 23 + plantKneeBend * 3;
+      const plantAnkleX = plantFootX;
+      const plantAnkleY = groundY - 4 + (bodyElev < -1 ? bodyElev * 0.5 : 0);
 
-      // Plant Thigh (Skin)
-      ctx.strokeStyle = '#f1c27d';
-      ctx.lineWidth = 7.5;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      // Plant Thigh (Skin with quad muscle contour)
+      drawLimbSegment(hipLX, hipLY_elev, plantKneeX, plantKneeY, 11, 8.5, '#f2c282', '#dfab6a');
+
+      // Plant Knee Patella
+      ctx.fillStyle = '#e8b574';
       ctx.beginPath();
-      ctx.moveTo(hipLX, hipLY);
-      ctx.lineTo(plantKneeX, plantKneeY);
-      ctx.stroke();
+      ctx.arc(plantKneeX, plantKneeY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
 
-      // Plant Shin / Sock
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 7;
-      ctx.beginPath();
-      ctx.moveTo(plantKneeX, plantKneeY);
-      ctx.lineTo(plantAnkleX, plantAnkleY);
-      ctx.stroke();
+      // Plant Shin / Soccer Sock (White with calf contour)
+      drawLimbSegment(plantKneeX, plantKneeY, plantAnkleX, plantAnkleY, 9.5, 7.5, '#f8fafc', '#e2e8f0');
 
-      // Plant Sock Tape Ring
+      // Team Tape Bands on upper sock
       ctx.strokeStyle = teamColor;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.moveTo(plantKneeX - 1, plantKneeY + 2);
-      ctx.lineTo(plantKneeX + 1, plantKneeY + 2);
+      ctx.moveTo(plantKneeX - 4, plantKneeY + 4);
+      ctx.lineTo(plantKneeX + 4, plantKneeY + 4);
       ctx.stroke();
 
-      // Plant Soccer Boot
+      // Plant Soccer Cleat (Firmly gripping turf)
       ctx.save();
       ctx.translate(plantAnkleX, plantAnkleY);
-      ctx.fillStyle = teamColor;
+
+      // Outsole & molded studs
+      ctx.fillStyle = '#090d16';
+      ctx.fillRect(-6, 3, 17, 2.8);
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillRect(-4, 5.8, 2.5, 1.8);
+      ctx.fillRect(2, 5.8, 2.5, 1.8);
+      ctx.fillRect(8, 5.8, 2.5, 1.8);
+
+      // Boot Upper
+      const plantGrad = ctx.createLinearGradient(0, -3, 0, 4);
+      plantGrad.addColorStop(0, teamColor);
+      plantGrad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = plantGrad;
       ctx.beginPath();
-      ctx.roundRect(-5, -2, 12, 6, 2);
+      ctx.roundRect(-6, -2, 17, 5.5, 2);
       ctx.fill();
-      ctx.fillStyle = '#080c16';
-      ctx.fillRect(-5, 4, 12, 2.5);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-2, 0, 6, 1.5);
+
+      // Dynamic speed stripe
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-2, 0);
+      ctx.lineTo(8, 1);
+      ctx.stroke();
       ctx.restore();
 
-      // ==========================================
-      // 3. Right Kicking Leg (The Dynamic Striker Leg)
-      // ==========================================
-      // Kicking Thigh (Skin)
-      ctx.strokeStyle = '#f1c27d';
-      ctx.lineWidth = 7.5;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(hipRX, hipRY);
-      ctx.lineTo(kneeRX, kneeRY);
-      ctx.stroke();
+      // ========================================================
+      // 3. Right Kicking Leg (Dynamic Striker Kinetic Chain)
+      // ========================================================
+      // Kicking Thigh (Contoured muscle quad)
+      drawLimbSegment(hipRX, hipRY_elev, kneeRX, kneeRY, 11, 8.5, '#f2c282', '#dfab6a');
 
-      // Kicking Shin / Sock
-      ctx.strokeStyle = '#e2e8f0';
-      ctx.lineWidth = 7;
+      // Knee Joint
+      ctx.fillStyle = '#e8b574';
       ctx.beginPath();
-      ctx.moveTo(kneeRX, kneeRY);
-      ctx.lineTo(ankleRX, ankleRY);
-      ctx.stroke();
+      ctx.arc(kneeRX, kneeRY, 4.5, 0, Math.PI * 2);
+      ctx.fill();
 
-      // Sock Tape Ring
+      // Kicking Shin / Soccer Sock
+      drawLimbSegment(kneeRX, kneeRY, ankleRX, ankleRY, 9.5, 7.5, '#f8fafc', '#e2e8f0');
+
+      // Team Tape Band
       ctx.strokeStyle = teamColor;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      const midShinX = (kneeRX + ankleRX) / 2;
-      const midShinY = (kneeRY + ankleRY) / 2;
-      ctx.arc(midShinX, midShinY, 3.5, 0, Math.PI * 2);
+      const midKX = (kneeRX * 2 + ankleRX) / 3;
+      const midKY = (kneeRY * 2 + ankleRY) / 3;
+      ctx.arc(midKX, midKY, 4.5, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Dynamic Kicking Soccer Boot (Rotates with swing and points forward!)
+      // Dynamic Striking Soccer Cleat (Rotates with ankle arc)
       ctx.save();
       ctx.translate(ankleRX, ankleRY);
-      const bootAngle = shinAngle + (kickSwing > 0 ? 0.35 : -0.2);
       ctx.rotate(bootAngle);
 
-      // Boot Upper
-      ctx.fillStyle = teamColor;
+      // Outsole & cleat studs
+      ctx.fillStyle = '#090d16';
       ctx.beginPath();
-      ctx.roundRect(-4, -2, 13, 6, 2.5);
+      ctx.roundRect(-5, 3, 18, 3, 1);
       ctx.fill();
 
-      // Boot Sole
-      ctx.fillStyle = '#080c16';
-      ctx.fillRect(-4, 4, 13, 2.5);
-
-      // Speed stripe
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(-1, 0, 7, 1.5);
-
-      // Cleat Studs
       ctx.fillStyle = '#cbd5e1';
-      ctx.fillRect(-3, 6.5, 2, 1.5);
-      ctx.fillRect(2, 6.5, 2, 1.5);
-      ctx.fillRect(7, 6.5, 2, 1.5);
-      ctx.restore();
+      ctx.fillRect(-3, 6, 2.5, 2);
+      ctx.fillRect(3, 6, 2.5, 2);
+      ctx.fillRect(9, 6, 2.5, 2);
 
-      // ==========================================
-      // 4. Shorts (Layered over the hip joints)
-      // ==========================================
-      ctx.fillStyle = '#0f172a'; // Deep navy/slate shorts
+      // Boot Upper (Aerodynamic instep curve)
+      const strikeGrad = ctx.createLinearGradient(0, -3, 0, 4);
+      strikeGrad.addColorStop(0, teamColor);
+      strikeGrad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = strikeGrad;
       ctx.beginPath();
-      ctx.roundRect(-13, -2, 26, 13, [2, 2, 4, 4]);
+      ctx.moveTo(-5, -2);
+      ctx.lineTo(7, -2);
+      ctx.lineTo(13, 0);
+      ctx.lineTo(13, 3);
+      ctx.lineTo(-5, 3);
+      ctx.closePath();
       ctx.fill();
 
-      // Shorts Accent Trim
-      ctx.strokeStyle = teamColor;
+      // White speed stripe
+      ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(-13, 11);
-      ctx.lineTo(13, 11);
+      ctx.moveTo(-2, 0);
+      ctx.lineTo(10, 1);
       ctx.stroke();
 
-      // ==========================================
-      // 5. Torso & Jersey (Rotates with athletic body lean)
-      // ==========================================
+      // Ankle collar
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(-5, -3, 5, 2);
+      ctx.restore();
+
+      // ========================================================
+      // 4. Team Shorts (Layered over pelvis)
+      // ========================================================
+      ctx.fillStyle = '#0f172a'; // Deep navy/slate shorts
+      ctx.beginPath();
+      ctx.roundRect(hipCenterX - 14, hipCenterY - 10 + bodyElev, 28, 17, [3, 3, 5, 5]);
+      ctx.fill();
+
+      // Shorts team color trim
+      ctx.strokeStyle = teamColor;
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(hipCenterX - 14, hipCenterY + 7 + bodyElev);
+      ctx.lineTo(hipCenterX + 14, hipCenterY + 7 + bodyElev);
+      ctx.stroke();
+
+      // ========================================================
+      // 5. Torso, Arms & Head (Rotated by trunk lean in equilibrium)
+      // ========================================================
       ctx.save();
-      ctx.translate(0, -6);
-      ctx.rotate(bodyLean);
+      ctx.translate(hipCenterX, hipCenterY - 6 + bodyElev);
+      ctx.rotate(trunkLean);
 
       // Torso in team jersey
       ctx.fillStyle = teamColor;
       ctx.beginPath();
-      ctx.roundRect(-15, -22, 30, 26, 6);
+      ctx.roundRect(-15, -28, 30, 28, 5);
       ctx.fill();
 
-      // Jersey Shading
+      // Jersey fabric shading
       ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
-      ctx.fillRect(-15, -22, 30, 8);
+      ctx.fillRect(-15, -28, 30, 8);
 
-      // Number on back/chest
+      // Jersey Number
       const jerseyNum = this.getJerseyNumber(activeP);
       let fontSize = 12;
       if (jerseyNum.length === 1) fontSize = 13;
@@ -2732,7 +2956,6 @@
       ctx.font = `bold ${fontSize}px Outfit, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-
       const isLightColor = (hex) => {
         if (!hex || !hex.startsWith('#')) return false;
         const c = hex.replace('#', '');
@@ -2742,46 +2965,48 @@
         return (r * 299 + g * 587 + b * 114) / 1000 > 155;
       };
       ctx.fillStyle = isLightColor(teamColor) ? '#080c16' : '#ffffff';
-      ctx.fillText(jerseyNum, 0, -10);
+      ctx.fillText(jerseyNum, 0, -14);
 
-      // ==========================================
-      // 6. Dynamic Articulated Arms
-      // ==========================================
-      // Left Arm (Balancing arm)
+      // Left Arm (Rotational Balance)
       ctx.save();
-      ctx.translate(-14, -18);
-      ctx.rotate(armLeftAngle);
+      ctx.translate(-14, -22);
+      ctx.rotate(armL);
+      // Short sleeve
       ctx.fillStyle = teamColor;
       ctx.beginPath();
-      ctx.roundRect(-3, 0, 6, 18, 3);
+      ctx.roundRect(-3.5, 0, 7, 10, 2);
       ctx.fill();
-      // Left Hand (Skin)
-      ctx.fillStyle = '#f1c27d';
+      // Forearm (skin)
+      ctx.fillStyle = '#f2c282';
       ctx.beginPath();
-      ctx.arc(0, 18, 3, 0, Math.PI * 2);
+      ctx.roundRect(-3, 10, 6, 12, 2);
+      ctx.fill();
+      // Hand
+      ctx.beginPath();
+      ctx.arc(0, 22, 3, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
-      // Right Arm (Counter-swing arm)
+      // Right Arm (Counter-swing)
       ctx.save();
-      ctx.translate(14, -18);
-      ctx.rotate(armRightAngle);
+      ctx.translate(14, -22);
+      ctx.rotate(armR);
       ctx.fillStyle = teamColor;
       ctx.beginPath();
-      ctx.roundRect(-3, 0, 6, 18, 3);
+      ctx.roundRect(-3.5, 0, 7, 10, 2);
       ctx.fill();
-      // Right Hand (Skin)
-      ctx.fillStyle = '#f1c27d';
+      ctx.fillStyle = '#f2c282';
       ctx.beginPath();
-      ctx.arc(0, 18, 3, 0, Math.PI * 2);
+      ctx.roundRect(-3, 10, 6, 12, 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 22, 3, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
-      // ==========================================
-      // 7. Player Head: Circular Photo Avatar & Ring
-      // ==========================================
-      const headRadius = 18;
-      const headCenterY = -headRadius - 22;
+      // Head: Circular Photo Avatar & Glowing Halo
+      const headRadius = 17;
+      const headCenterY = -headRadius - 28;
 
       ctx.save();
       ctx.beginPath();
@@ -2791,7 +3016,7 @@
       if (img && img.complete && img.naturalWidth > 0) {
         ctx.drawImage(img, -headRadius, headCenterY - headRadius, headRadius * 2, headRadius * 2);
       } else {
-        ctx.fillStyle = '#f1c27d';
+        ctx.fillStyle = '#f2c282';
         ctx.fillRect(-headRadius, headCenterY - headRadius, headRadius * 2, headRadius * 2);
       }
       ctx.restore();
@@ -2803,7 +3028,7 @@
       ctx.arc(0, headCenterY, headRadius, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Rotating Colored Border around Kicker Head Avatar on Pitch (until result arrives)
+      // Rotating Tournament Border (until result arrives)
       const hasOutcomeArrived = ['goal', 'saved', 'post', 'missed'].includes(this.ball.state);
       if (!hasOutcomeArrived) {
         ctx.save();
@@ -2845,7 +3070,7 @@
       ctx.textAlign = 'center';
       ctx.fillText(tagText, 0, tagY + 13);
 
-      // Small pointer arrow pointing down to kicker's head
+      // Pointer arrow
       ctx.fillStyle = teamColor;
       ctx.beginPath();
       ctx.moveTo(-4, tagY + tagH);
@@ -2853,10 +3078,13 @@
       ctx.lineTo(0, tagY + tagH + 4);
       ctx.closePath();
       ctx.fill();
-
       ctx.restore(); // restore torso rotation
 
-      ctx.restore(); // restore kx, ky translate
+      // Cache current joint angles to ensure continuous C0 transitions when kick triggers
+      this.kicker.currentThigh = thighAngle;
+      this.kicker.currentKnee = kneeFlex;
+
+      ctx.restore(); // restore global kicker context
     }
 
     getCurrentBallRadius() {
