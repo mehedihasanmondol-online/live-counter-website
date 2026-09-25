@@ -81,10 +81,10 @@
         power: 1.0,
         hasImpacted: false,
         impactRatio: 0.28,
-        initialThigh: 0,
-        initialKnee: 0,
-        currentThigh: 0,
-        currentKnee: 0,
+        initialFwd: -8,
+        initialLift: 0,
+        currentFwd: -8,
+        currentLift: 0,
         breathTimer: 0
       };
 
@@ -828,8 +828,8 @@
       this.kicker.isKicking = false;
       this.kicker.kickTime = 0;
       this.kicker.hasImpacted = false;
-      this.kicker.currentThigh = 0;
-      this.kicker.currentKnee = 0;
+      this.kicker.currentFwd = -8;
+      this.kicker.currentLift = 0;
       this.onKickImpact = null;
       this.pendingShot = null;
       this.impactParticles = [];
@@ -847,8 +847,8 @@
       this.kicker.power = power;
       this.kicker.hasImpacted = false;
       this.kicker.impactRatio = 0.28; // Impact occurs at ~140ms after backswing load & snap
-      this.kicker.initialThigh = this.kicker.currentThigh || 0;
-      this.kicker.initialKnee = this.kicker.currentKnee || 0;
+      this.kicker.initialFwd = this.kicker.currentFwd !== undefined ? this.kicker.currentFwd : -8;
+      this.kicker.initialLift = this.kicker.currentLift !== undefined ? this.kicker.currentLift : 0;
       this.onKickImpact = onImpact;
     }
 
@@ -2586,12 +2586,12 @@
       const hipRX = hipCenterX + 6; // spotX - 10 (directly beside the ball curve)
 
       // ========================================================
-      // Biomechanical Double Pendulum Kinematics & Kinetic Chain
+      // 2.5D Perspective Pitch Kinematics & Kinetic Chain
       // ========================================================
-      let thighAngle = 0;   // Thigh rotation relative to vertical (rad)
-      let kneeFlex = 0;     // Knee flexion bending backward from thigh (rad)
+      let forwardD = -8;    // Depth along pitch (- is behind towards camera, + is forward towards goal)
+      let liftH = 0;        // Altitude above turf surface (pixels lifted UP into the air)
       let plantKneeBend = 0;// Plant knee flexion for athletic weight absorption
-      let trunkLean = 0;    // Torso forward/backward lean
+      let trunkLean = 0;    // Torso forward/backward balance lean
       let bodyElev = 0;     // Vertical rise on toes / jump
       let armL = -0.22;     // Left balance arm angle
       let armR = 0.22;      // Right counter-arm angle
@@ -2601,86 +2601,80 @@
         const power = this.kicker.power || 1.0;
         const pCock = 0.12;   // Dynamic backswing finishes at ~60ms
         const pImp = this.kicker.impactRatio || 0.28; // Impact occurs at ~140ms
-        const pApex = 0.68;   // High follow-through apex at ~340ms
+        const pApex = 0.65;   // Follow-through high apex at ~325ms
 
-        const initThigh = this.kicker.initialThigh || 0;
-        const initKnee = this.kicker.initialKnee || 0;
-        const maxBackThigh = -0.76 * (0.8 + power * 0.2); // Hip cocked back ~43°
-        const maxBackKnee = 1.68;                          // Deep knee bend ~96° (heel to glute)
+        const initFwd = this.kicker.initialFwd !== undefined ? this.kicker.initialFwd : -8;
+        const initLift = this.kicker.initialLift !== undefined ? this.kicker.initialLift : 0;
+        const targetBackFwd = -30 * (0.85 + power * 0.15); // Leg pulls back 30px behind ball
+        const targetBackLift = 28;                         // Heel lifts 28px in air behind hip
 
         if (p < pCock) {
-          // --- Phase 0: Dynamic Backswing (Elastic Muscle Loading) ---
-          // Smooth Hermite S-curve from current stance into full backswing (no teleportation!)
+          // --- Phase 0: Dynamic Backswing (Pulls leg back & lifts heel behind hip) ---
           const u = p / pCock;
           const ease = u * u * (3 - 2 * u);
-          thighAngle = initThigh + (maxBackThigh - initThigh) * ease;
-          kneeFlex = initKnee + (maxBackKnee - initKnee) * ease;
+          forwardD = initFwd + (targetBackFwd - initFwd) * ease;
+          liftH = initLift + (targetBackLift - initLift) * ease;
           plantKneeBend = 0.18 * ease;
-          trunkLean = 0.08 * ease;
-          armL = -0.22 - 0.25 * ease;
-          armR = 0.22 + 0.18 * ease;
+          trunkLean = 0.10 * ease; // Torso leans forward focused on ball
+          armL = -0.22 - 0.28 * ease;
+          armR = 0.22 + 0.20 * ease;
 
         } else if (p < pImp) {
-          // --- Phase 1: Proximal Hip Drive with Inertial Lower-Leg Lag ---
+          // --- Phase 1: Forward Drive with Lower-Leg Inertial Lag & Snap ---
           const v = (p - pCock) / (pImp - pCock);
-          // Quadratic acceleration of the thigh driven by hip flexors
           const thighDrive = v * v;
-          thighAngle = maxBackThigh * (1 - thighDrive) + 0.24 * thighDrive;
+          forwardD = targetBackFwd * (1 - thighDrive) + 6 * thighDrive; // Drives forward to +6px through ball!
 
-          // Double pendulum lag physics:
-          // Angular acceleration of thigh produces reactionary knee flexion torque
-          if (v < 0.60) {
-            // Lower leg lags behind, holding elastic potential energy
-            const lagRatio = v / 0.60;
-            kneeFlex = maxBackKnee - 0.18 * lagRatio;
+          if (v < 0.55) {
+            // Lower-leg lag: heel stays tucked near glute, high in air
+            const lag = v / 0.55;
+            liftH = targetBackLift - 6 * lag;
           } else {
-            // Explosive knee extension snap into ball impact!
-            const snap = (v - 0.60) / 0.40;
-            const snapEase = snap * (2 - snap); // Decelerating extension into lock
-            kneeFlex = (maxBackKnee - 0.18) * (1 - snapEase) + 0.05 * snapEase;
+            // Explosive snap down-forward into ball impact!
+            const snap = (v - 0.55) / 0.45;
+            const snapEase = snap * (2 - snap);
+            liftH = (targetBackLift - 6) * (1 - snapEase) + 7 * snapEase; // Hits ball at 7px above turf!
           }
 
           plantKneeBend = 0.18 + 0.16 * Math.sin(v * Math.PI);
-          trunkLean = 0.08 * (1 - v * 0.5);
-          armL = -0.47 - 0.25 * v; // Balance arm sweeps across chest
-          armR = 0.40 - 0.50 * v;
+          trunkLean = 0.10 * (1 - v * 0.6);
+          armL = -0.50 - 0.22 * v;
+          armR = 0.42 - 0.50 * v;
 
         } else if (p < pApex) {
-          // --- Phase 2: High Follow-Through Arc & Angular Momentum Balance ---
+          // --- Phase 2: High Follow-Through Arc into the Air (Pa upore uthe!) ---
+          // Foot continues forward into pitch and RISES HIGH into the air!
           const w = (p - pImp) / (pApex - pImp);
-          const rise = Math.sin(w * Math.PI * 0.5); // Sinusoidal deceleration to apex
-          const apexThigh = 0.24 + 0.62 * Math.min(1.3, power);
-
-          thighAngle = 0.24 + (apexThigh - 0.24) * rise;
-          kneeFlex = 0.05 * (1 - rise); // Fully extended knee in follow-through arc
-          trunkLean = 0.04 - 0.25 * rise; // Torso leans back to balance angular momentum (Newton's 3rd Law)
+          const rise = Math.sin(w * Math.PI * 0.5); // Sinusoidal ascent to apex
+          forwardD = 6 + 16 * rise;                 // Advances forward to +22px towards goal!
+          liftH = 7 + (38 * Math.min(1.25, power)) * rise; // LIFTS UP TO 45px IN THE AIR!
+          trunkLean = 0.04 - 0.25 * rise;           // Torso leans back to balance momentum (Newton's 3rd Law)
           plantKneeBend = 0.34 * (1 - rise * 0.7);
-          bodyElev = -5.0 * rise * Math.min(1.25, power); // Striker elevates onto plant toes!
-          armL = -0.72; // Left arm extended wide across chest
+          bodyElev = -5.5 * rise * Math.min(1.2, power); // Striker rises onto plant toes!
+          armL = -0.72; // Balance arm wide
           armR = -0.22;
 
         } else {
-          // --- Phase 3: Smooth Gravitational Recovery & Landing ---
+          // --- Phase 3: Recovery Descent (Abar pichone asbe!) ---
+          // Foot swings smoothly down from apex and returns behind to starting stance
           const z = (p - pApex) / (1.0 - pApex);
           const ease = z * z * (3 - 2 * z);
-          const apexThigh = 0.24 + 0.62 * Math.min(1.3, power);
-
-          thighAngle = apexThigh * (1 - ease) + 0.06 * ease;
-          kneeFlex = 0.05 * (1 - ease) + 0.06 * ease;
+          forwardD = 22 * (1 - ease) - 8 * ease; // Returns from +22px back to -8px!
+          liftH = 45 * (1 - ease);               // Descends from 45px down to 0px on turf!
           trunkLean = -0.21 * (1 - ease);
-          bodyElev = -5.0 * Math.min(1.25, power) * (1 - ease);
+          bodyElev = -5.5 * Math.min(1.2, power) * (1 - ease);
           plantKneeBend = 0.10 * (1 - ease);
           armL = -0.72 * (1 - ease) - 0.22 * ease;
           armR = -0.22 * (1 - ease) + 0.22 * ease;
         }
 
       } else if (this.ball.state === 'aiming' || (this.isAutoShoot && this.autoShootPrepTimer)) {
-        // Aiming / Preparation Run-Up & Backswing
+        // Aiming / Preparation: Leg pulled back behind ball with heel lifted
         const prep = Math.min(1.0, this.kicker.legAngle || 0.55);
-        thighAngle = -prep * 0.72; // Thigh cocked back ~42°
-        kneeFlex = prep * 1.62;    // Knee flexed ~93° (heel high near glute!)
-        plantKneeBend = prep * 0.26;
-        trunkLean = prep * 0.12;   // Torso focused forward
+        forwardD = -8 - 20 * prep; // Pulled back behind ball
+        liftH = 26 * prep;         // Heel raised in preparation
+        plantKneeBend = 0.24 * prep;
+        trunkLean = 0.10 * prep;
         armL = -0.22 - prep * 0.35;
         armR = 0.22 + prep * 0.25;
 
@@ -2689,29 +2683,31 @@
         const jumpPhase = Math.sin(Date.now() * 0.009);
         bodyElev = -Math.abs(jumpPhase) * 16;
         trunkLean = jumpPhase * 0.06;
-        thighAngle = jumpPhase * 0.30;
-        kneeFlex = Math.abs(jumpPhase) * 0.40;
+        forwardD = 4 * jumpPhase;
+        liftH = Math.abs(jumpPhase) * 14;
         armL = -1.25 + jumpPhase * 0.2; // Both arms raised high in victory!
         armR = 1.25 - jumpPhase * 0.2;
 
       } else if (this.ball.state === 'saved' || this.ball.state === 'missed' || this.ball.state === 'post') {
         // Disbelief & disappointment posture on missed/saved attempt
+        forwardD = -6;
+        liftH = 0;
         trunkLean = 0.16; // Head and torso hung forward
-        thighAngle = 0.06;
-        kneeFlex = 0.08;
         armL = 0.10;
         armR = 0.10;
 
       } else if (this.ball.state === 'flying') {
         // Watching ball flight in athletic stance
-        thighAngle = 0.12;
-        kneeFlex = 0.05;
+        forwardD = 4;
+        liftH = 0;
         trunkLean = 0.04;
         armL = -0.38;
         armR = 0.16;
 
       } else {
         // Idle Ready Stance (subtle breathing rhythm)
+        forwardD = -8;
+        liftH = 0;
         const breath = Math.sin(this.kicker.breathTimer) * 1.2;
         bodyElev = breath;
       }
@@ -2762,29 +2758,54 @@
       ctx.ellipse(plantFootX, groundY, 13, 5, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Kicking Leg Joint Calculations
+      // Kicking Leg Joint Calculations (2.5D Perspective Projection + 2-Bone IK)
       const thighLen = 23;
       const shinLen = 23;
       const hipRY_elev = hipCenterY + bodyElev;
 
-      const kneeRX = hipRX + Math.sin(thighAngle) * thighLen;
-      const kneeRY = hipRY_elev + Math.cos(thighAngle) * thighLen;
+      // Pitch surface coordinate (advances forward towards goal):
+      const pitchTurfY = groundY - forwardD * 0.60;
+      const targetAnkleX = spotX - 8 + (forwardD > 0 ? (forwardD / 22) * 9 : (forwardD / 30) * 4);
 
-      const shinAngle = thighAngle - kneeFlex;
-      const ankleRX = kneeRX + Math.sin(shinAngle) * shinLen;
-      const ankleRY = kneeRY + Math.cos(shinAngle) * shinLen;
+      // In 3D air: vertical lift elevates foot above the grass:
+      const ankleRY = pitchTurfY - liftH;
+      const ankleRX = targetAnkleX;
 
-      // Ankle boot angle locked in instep plantarflexion
-      const bootAngle = shinAngle + (kneeFlex > 0.5 ? -0.2 : 0.35);
-
-      // Kicking Foot Shadow (moves horizontally with foot, softens & expands with elevation)
-      const footElevation = Math.max(0, groundY - ankleRY);
-      const kShadowAlpha = Math.max(0.06, 0.45 - footElevation * 0.015);
-      const kShadowScale = Math.max(0.40, 1.0 - footElevation * 0.02);
+      // Kicking Foot Turf Shadow (Stays strictly on the grass surface at pitchTurfY!)
+      const footElevation = liftH;
+      const kShadowAlpha = Math.max(0.08, 0.46 - footElevation * 0.009);
+      const kShadowScale = Math.max(0.45, 1.0 - footElevation * 0.012);
       ctx.fillStyle = `rgba(0, 0, 0, ${kShadowAlpha})`;
       ctx.beginPath();
-      ctx.ellipse(ankleRX, groundY, 13 * kShadowScale, 5 * kShadowScale, 0, 0, Math.PI * 2);
+      ctx.ellipse(ankleRX, pitchTurfY, 14 * kShadowScale, 5.5 * kShadowScale, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      // 2-Bone Inverse Kinematics for Athletic Knee Joint Position
+      const Hx = hipRX;
+      const Hy = hipRY_elev;
+      const Ax = ankleRX;
+      const Ay = ankleRY;
+      const dx = Ax - Hx;
+      const dy = Ay - Hy;
+      const D = Math.hypot(dx, dy);
+      const maxD = thighLen + shinLen - 0.6; // 45.4px
+      const clampedD = Math.max(10, Math.min(maxD, D));
+
+      const cosAlpha = (thighLen * thighLen + clampedD * clampedD - shinLen * shinLen) / (2 * thighLen * clampedD);
+      const alpha = Math.acos(Math.max(-1, Math.min(1, cosAlpha)));
+      const baseAngle = Math.atan2(dy, dx);
+
+      // Knee extends forward in the direction of the kick
+      const kneeAngle = baseAngle - alpha;
+      const kneeRX = Hx + Math.cos(kneeAngle) * thighLen;
+      const kneeRY = Hy + Math.sin(kneeAngle) * thighLen;
+
+      // Shin vector from Knee to Ankle
+      const shinVecAngle = Math.atan2(Ay - kneeRY, Ax - kneeRX);
+
+      // Dynamic boot angle:
+      // Rotates with shin angle, locking into instep during strike and tilting upward when high in the air
+      const bootAngle = shinVecAngle - Math.PI * 0.5 + (liftH > 18 ? 0.45 : 0.28);
 
       // ========================================================
       // 2. Left Plant Leg (Supporting Athletic Leg)
@@ -3080,9 +3101,9 @@
       ctx.fill();
       ctx.restore(); // restore torso rotation
 
-      // Cache current joint angles to ensure continuous C0 transitions when kick triggers
-      this.kicker.currentThigh = thighAngle;
-      this.kicker.currentKnee = kneeFlex;
+      // Cache current 2.5D position to ensure continuous C0 transitions when kick triggers
+      this.kicker.currentFwd = forwardD;
+      this.kicker.currentLift = liftH;
 
       ctx.restore(); // restore global kicker context
     }
