@@ -34,6 +34,16 @@ class SoundEngine {
     this.currentGoalSource = null;
     this.currentGoalAudio = null;
     this.initGoalAudio();
+
+    // User Kick Sound Effects (assets/kick-sound-1.mp3 and assets/kick-sound-2.mp3)
+    this.kickSoundFiles = [
+      'assets/kick-sound-1.mp3',
+      'assets/kick-sound-2.mp3'
+    ];
+    this.kickAudioBuffers = [];
+    this.kickAudioElements = [];
+    this.lastKickSoundIndex = -1;
+    this.initKickAudio();
   }
 
   initGoalAudio() {
@@ -67,6 +77,37 @@ class SoundEngine {
     });
   }
 
+  initKickAudio() {
+    try {
+      this.kickAudioElements = this.kickSoundFiles.map((file) => {
+        const audio = new Audio(encodeURI(file));
+        audio.preload = 'auto';
+        return audio;
+      });
+    } catch (e) {
+      console.warn('HTML5 kick audio preload warning:', e);
+    }
+  }
+
+  loadKickAudioBuffers() {
+    if (!this.ctx) return;
+    this.kickSoundFiles.forEach((file, index) => {
+      if (this.kickAudioBuffers[index]) return;
+      fetch(encodeURI(file))
+        .then(res => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.arrayBuffer();
+        })
+        .then(arrayBuf => this.ctx.decodeAudioData(arrayBuf))
+        .then(decodedBuf => {
+          this.kickAudioBuffers[index] = decodedBuf;
+        })
+        .catch(err => {
+          console.warn('Web Audio buffer preload error for', file, err);
+        });
+    });
+  }
+
   initAudioContext() {
     if (!this.ctx) {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -78,6 +119,7 @@ class SoundEngine {
       this.ctx.resume();
     }
     this.loadGoalAudioBuffers();
+    this.loadKickAudioBuffers();
   }
 
   toggleMute() {
@@ -255,23 +297,70 @@ class SoundEngine {
     }
   }
 
-  // Football Kick sound - punchy low-frequency thump and friction
+  // Authentic Football Kick Sound - plays user assets (assets/kick-sound-1.mp3, assets/kick-sound-2.mp3)
   playKick(power = 1) {
     if (this.muted) return;
     this.initAudioContext();
-    if (!this.ctx) return;
 
+    const clampedPower = Math.max(0.6, Math.min(1.5, power));
+    const vol = Math.min(1.0, Math.max(0.5, 0.75 + (clampedPower - 1.0) * 0.25));
+
+    // Select kick sound (alternating between kick-sound-1 and kick-sound-2 for natural acoustic variation)
+    if (this.kickSoundFiles && this.kickSoundFiles.length > 0) {
+      const kickIdx = (this.lastKickSoundIndex + 1) % this.kickSoundFiles.length;
+      this.lastKickSoundIndex = kickIdx;
+
+      // 1. High-Performance Web Audio Buffer Source (Instant Zero-Latency Execution)
+      if (this.ctx && this.kickAudioBuffers && this.kickAudioBuffers[kickIdx]) {
+        try {
+          const source = this.ctx.createBufferSource();
+          source.buffer = this.kickAudioBuffers[kickIdx];
+
+          // Subtle pitch inflection reflecting strike velocity
+          const pitch = Math.max(0.90, Math.min(1.15, 0.98 + (clampedPower - 1.0) * 0.12));
+          source.playbackRate.setValueAtTime(pitch, this.ctx.currentTime);
+
+          const gainNode = this.ctx.createGain();
+          gainNode.gain.setValueAtTime(vol, this.ctx.currentTime);
+
+          source.connect(gainNode);
+          gainNode.connect(this.ctx.destination);
+          source.start(0);
+          return;
+        } catch (err) {
+          console.warn('Web Audio kick playback error, falling back:', err);
+        }
+      }
+
+      // 2. HTML5 Audio Element Fallback
+      try {
+        const audioProto = this.kickAudioElements && this.kickAudioElements[kickIdx];
+        const audio = audioProto ? audioProto.cloneNode() : new Audio(encodeURI(this.kickSoundFiles[kickIdx]));
+        audio.currentTime = 0;
+        audio.volume = vol;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {});
+        }
+        return;
+      } catch (e) {
+        console.warn('HTML5 kick audio error, fallback to synth:', e);
+      }
+    }
+
+    // 3. Synthesizer Fallback (If asset files are not yet loaded)
+    if (!this.ctx) return;
     try {
       const now = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
-      const baseFreq = 160 + Math.min(power * 60, 80);
+      const baseFreq = 160 + Math.min(clampedPower * 60, 80);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(baseFreq, now);
       osc.frequency.exponentialRampToValueAtTime(32, now + 0.12);
 
-      gain.gain.setValueAtTime(0.35 * Math.min(power, 1.2), now);
+      gain.gain.setValueAtTime(0.35 * Math.min(clampedPower, 1.2), now);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
       osc.connect(gain);
@@ -280,7 +369,6 @@ class SoundEngine {
       osc.start(now);
       osc.stop(now + 0.14);
 
-      // Add kick turf slap noise
       this.playNoiseTransient(now, 0.04, 900, 0.15);
     } catch (e) {
       console.warn('Audio kick error:', e);
