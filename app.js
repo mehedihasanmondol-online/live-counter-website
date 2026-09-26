@@ -258,6 +258,9 @@
           if (p.posY === undefined || isNaN(p.posY)) p.posY = 50;
           if (p.penaltyPosX === undefined || isNaN(p.penaltyPosX)) p.penaltyPosX = 50;
           if (p.penaltyPosY === undefined || isNaN(p.penaltyPosY)) p.penaltyPosY = 50;
+          if (!p.colorRgb && p.color) {
+            p.colorRgb = hexToRgb(p.color);
+          }
           if (!p.goalSound) {
             p.goalSound = (idx % 2 === 0) ? 'assets/Goal sound effect.mp3' : 'assets/Goal sound effect 2.mp3';
           }
@@ -366,6 +369,19 @@
     }
     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
     return brightness > 150;
+  }
+
+  function hexToRgb(hex) {
+    if (!hex) return '0, 240, 255';
+    let cleanHex = String(hex).replace('#', '').trim();
+    if (cleanHex.length === 3) {
+      cleanHex = cleanHex.split('').map(x => x + x).join('');
+    }
+    if (cleanHex.length !== 6) return '0, 240, 255';
+    const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
+    const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
+    const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
+    return `${r}, ${g}, ${b}`;
   }
 
   const arenaListeners = [];
@@ -1644,6 +1660,7 @@
       }
     }
     applyBlankLayoutCSS();
+    renderBlankPlayerColors();
   }
 
   function applyBlankLayoutCSS() {
@@ -1688,10 +1705,10 @@
       if (saved) {
         const parsed = JSON.parse(saved);
         blankLayout = {
-          nameSize: typeof parsed.nameSize === 'number' ? parsed.nameSize : DEFAULT_BLANK_LAYOUT.nameSize,
-          scoreSize: typeof parsed.scoreSize === 'number' ? parsed.scoreSize : DEFAULT_BLANK_LAYOUT.scoreSize,
-          gap: typeof parsed.gap === 'number' ? parsed.gap : DEFAULT_BLANK_LAYOUT.gap,
-          shiftY: typeof parsed.shiftY === 'number' ? parsed.shiftY : DEFAULT_BLANK_LAYOUT.shiftY
+          nameSize: typeof parsed.nameSize === 'number' ? Math.min(8.0, Math.max(1.0, parsed.nameSize)) : DEFAULT_BLANK_LAYOUT.nameSize,
+          scoreSize: typeof parsed.scoreSize === 'number' ? Math.min(36.0, Math.max(4.0, parsed.scoreSize)) : DEFAULT_BLANK_LAYOUT.scoreSize,
+          gap: typeof parsed.gap === 'number' ? Math.min(160, Math.max(0, parsed.gap)) : DEFAULT_BLANK_LAYOUT.gap,
+          shiftY: typeof parsed.shiftY === 'number' ? Math.min(200, Math.max(-200, parsed.shiftY)) : DEFAULT_BLANK_LAYOUT.shiftY
         };
       } else {
         blankLayout = { ...DEFAULT_BLANK_LAYOUT };
@@ -1731,18 +1748,84 @@
   let selectedColor = PALETTE[0].hex;
   let selectedColorRgb = PALETTE[0].rgb;
 
+  function setSelectedColor(hex, rgb = null) {
+    if (!hex) return;
+    let cleanHex = String(hex).trim();
+    if (!cleanHex.startsWith('#')) cleanHex = '#' + cleanHex;
+    selectedColor = cleanHex;
+    selectedColorRgb = rgb || hexToRgb(cleanHex);
+
+    // Update preset swatches active state
+    if (colorSwatchesContainer) {
+      const swatches = colorSwatchesContainer.querySelectorAll('.color-swatch');
+      swatches.forEach(sw => {
+        const swHex = sw.dataset.colorHex;
+        if (swHex && swHex.toLowerCase() === selectedColor.toLowerCase()) {
+          sw.classList.add('active');
+        } else {
+          sw.classList.remove('active');
+        }
+      });
+    }
+
+    // Check if matching preset
+    const isPreset = PALETTE.some(c => c.hex.toLowerCase() === selectedColor.toLowerCase());
+    const customSwatchBtn = document.getElementById('custom-color-swatch-btn');
+    if (customSwatchBtn) {
+      customSwatchBtn.classList.toggle('active', !isPreset);
+      customSwatchBtn.style.color = selectedColor;
+      if (!isPreset) {
+        customSwatchBtn.style.borderColor = selectedColor;
+        customSwatchBtn.style.boxShadow = `0 0 16px ${selectedColor}66`;
+      } else {
+        customSwatchBtn.style.borderColor = '';
+        customSwatchBtn.style.boxShadow = '';
+      }
+    }
+
+    // Update native color picker input
+    const playerColorPicker = document.getElementById('player-color-picker');
+    if (playerColorPicker) {
+      try {
+        playerColorPicker.value = selectedColor;
+      } catch (e) {}
+    }
+
+    // Update hex text input
+    const hexTextInput = document.getElementById('player-hex-text-input');
+    if (hexTextInput && document.activeElement !== hexTextInput) {
+      hexTextInput.value = selectedColor.replace('#', '').toUpperCase();
+    }
+
+    // Update preview indicator badge
+    const activeDot = document.getElementById('player-color-active-dot');
+    if (activeDot) {
+      activeDot.style.backgroundColor = selectedColor;
+      activeDot.style.color = selectedColor;
+    }
+    const activeHexText = document.getElementById('player-color-active-hex');
+    if (activeHexText) {
+      activeHexText.innerText = selectedColor.toUpperCase();
+    }
+
+    // Update avatar circle border
+    if (previewAvatarCircle) {
+      previewAvatarCircle.style.borderColor = selectedColor;
+    }
+  }
+
   function renderColorSwatches() {
+    if (!colorSwatchesContainer) return;
     colorSwatchesContainer.innerHTML = '';
     PALETTE.forEach(c => {
       const swatch = document.createElement('div');
-      swatch.className = `color-swatch ${c.hex === selectedColor ? 'active' : ''}`;
+      swatch.className = `color-swatch ${c.hex.toLowerCase() === selectedColor.toLowerCase() ? 'active' : ''}`;
+      swatch.dataset.colorHex = c.hex;
       swatch.style.backgroundColor = c.hex;
       swatch.style.color = c.hex;
+      swatch.title = c.name;
       swatch.addEventListener('click', () => {
-        selectedColor = c.hex;
-        selectedColorRgb = c.rgb;
-        renderColorSwatches();
-        previewAvatarCircle.style.borderColor = c.hex;
+        setSelectedColor(c.hex, c.rgb);
       });
       colorSwatchesContainer.appendChild(swatch);
     });
@@ -1750,7 +1833,6 @@
 
   function openPlayerModal(playerId = null) {
     editingPlayerId = playerId;
-    renderColorSwatches();
 
     if (playerId) {
       const p = players.find(x => x.id === playerId);
@@ -1759,20 +1841,18 @@
         playerTagInput.value = p.tag || '';
         playerAvatarInput.value = p.avatar;
         previewAvatarCircle.src = p.avatar;
-        selectedColor = p.color;
-        selectedColorRgb = p.colorRgb;
+        setSelectedColor(p.color, p.colorRgb);
+        renderColorSwatches();
         if (playerGoalSoundSelect) {
           playerGoalSoundSelect.value = p.goalSound || (players.indexOf(p) % 2 === 0 ? 'assets/Goal sound effect.mp3' : 'assets/Goal sound effect 2.mp3');
         }
-        renderColorSwatches();
         deletePlayerBtn.style.display = players.length > 1 ? 'block' : 'none';
       }
     } else {
       // Adding new player
       const nextIndex = players.length + 1;
       const nextColor = PALETTE[(players.length) % PALETTE.length];
-      selectedColor = nextColor.hex;
-      selectedColorRgb = nextColor.rgb;
+      setSelectedColor(nextColor.hex, nextColor.rgb);
       renderColorSwatches();
 
       playerNameInput.value = `Player ${nextIndex}`;
@@ -1802,7 +1882,7 @@
         p.tag = tag;
         p.avatar = avatar;
         p.color = selectedColor;
-        p.colorRgb = selectedColorRgb;
+        p.colorRgb = selectedColorRgb || hexToRgb(selectedColor);
         p.goalSound = goalSound;
       }
     } else {
@@ -1816,7 +1896,7 @@
         goalSound,
         score: initialScore,
         color: selectedColor,
-        colorRgb: selectedColorRgb,
+        colorRgb: selectedColorRgb || hexToRgb(selectedColor),
         posX: 50,
         posY: 50
       });
@@ -1824,6 +1904,7 @@
 
     saveState();
     renderArena();
+    renderBlankPlayerColors();
     playerModal.classList.remove('show');
   }
 
@@ -1832,7 +1913,79 @@
     players = players.filter(p => p.id !== editingPlayerId);
     saveState();
     renderArena();
+    renderBlankPlayerColors();
     playerModal.classList.remove('show');
+  }
+
+  function renderBlankPlayerColors() {
+    const list = document.getElementById('blank-player-colors-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    players.forEach((p, idx) => {
+      const row = document.createElement('div');
+      row.className = 'blank-player-color-row';
+
+      const labelWrap = document.createElement('div');
+      labelWrap.className = 'blank-row-label';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'blank-row-name';
+      nameSpan.innerText = p.name || `Player ${idx + 1}`;
+
+      const subSpan = document.createElement('span');
+      subSpan.className = 'blank-row-sub';
+      subSpan.innerText = `Tag: ${p.tag || `#${idx + 1}`}`;
+
+      labelWrap.appendChild(nameSpan);
+      labelWrap.appendChild(subSpan);
+
+      const pickerWrap = document.createElement('label');
+      pickerWrap.className = 'blank-player-color-picker-label';
+      pickerWrap.title = `Change ${p.name}'s screen color`;
+
+      const colorPreview = document.createElement('span');
+      colorPreview.className = 'blank-player-color-preview';
+      colorPreview.style.backgroundColor = p.color;
+
+      const hexText = document.createElement('span');
+      hexText.className = 'blank-player-color-hex';
+      hexText.innerText = (p.color || '#00f0ff').toUpperCase();
+
+      const input = document.createElement('input');
+      input.type = 'color';
+      input.className = 'blank-player-color-input';
+      input.value = p.color || '#00f0ff';
+
+      const onColorChange = (e) => {
+        const newColor = e.target.value;
+        p.color = newColor;
+        p.colorRgb = hexToRgb(newColor);
+        colorPreview.style.backgroundColor = newColor;
+        hexText.innerText = newColor.toUpperCase();
+
+        const card = document.querySelector(`.player-card[data-id="${p.id}"]`);
+        if (card) {
+          card.style.setProperty('--player-color', p.color);
+          card.style.setProperty('--player-color-rgb', p.colorRgb);
+          const isLight = isColorLight(p.color);
+          card.style.setProperty('--blank-text-color', isLight ? '#121212' : '#ffffff');
+          card.style.setProperty('--blank-text-shadow', isLight ? '0 2px 8px rgba(0, 0, 0, 0.14)' : '0 4px 18px rgba(0, 0, 0, 0.25)');
+        }
+        saveState();
+      };
+
+      input.addEventListener('input', onColorChange);
+      input.addEventListener('change', onColorChange);
+
+      pickerWrap.appendChild(colorPreview);
+      pickerWrap.appendChild(hexText);
+      pickerWrap.appendChild(input);
+
+      row.appendChild(labelWrap);
+      row.appendChild(pickerWrap);
+      list.appendChild(row);
+    });
   }
 
   /* ==========================================================================
@@ -2252,6 +2405,42 @@
       playerModal.classList.remove('show');
       handleViewOrStateChange();
     });
+
+    // Player color picker and hex input in player modal
+    const playerColorPicker = document.getElementById('player-color-picker');
+    if (playerColorPicker) {
+      playerColorPicker.addEventListener('input', (e) => {
+        setSelectedColor(e.target.value);
+      });
+      playerColorPicker.addEventListener('change', (e) => {
+        setSelectedColor(e.target.value);
+      });
+    }
+
+    const playerHexTextInput = document.getElementById('player-hex-text-input');
+    if (playerHexTextInput) {
+      playerHexTextInput.addEventListener('input', (e) => {
+        let val = e.target.value.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6);
+        e.target.value = val.toUpperCase();
+        if (val.length === 6 || val.length === 3) {
+          setSelectedColor('#' + val);
+        }
+      });
+      playerHexTextInput.addEventListener('blur', (e) => {
+        let val = e.target.value.replace(/[^0-9A-Fa-f]/g, '');
+        if (val.length === 6 || val.length === 3) {
+          setSelectedColor('#' + val);
+        } else {
+          e.target.value = selectedColor.replace('#', '').toUpperCase();
+        }
+      });
+      playerHexTextInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          playerHexTextInput.blur();
+        }
+      });
+    }
 
     // Goal sound preview button in player modal
     if (previewGoalSoundBtn && playerGoalSoundSelect) {

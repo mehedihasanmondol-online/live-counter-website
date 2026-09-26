@@ -4,8 +4,8 @@
  * Provides 100% offline access, instant loading, and asset caching
  */
 
-const CACHE_NAME = 'arena-counter-v1.3.2';
-const FONT_CACHE_NAME = 'arena-counter-fonts-v1';
+const CACHE_NAME = 'arena-counter-v1.3.3';
+const FONT_CACHE_NAME = 'arena-counter-fonts-v2';
 
 // Essential static resources for offline execution
 const CORE_PRECACHE_URLS = [
@@ -95,7 +95,7 @@ self.addEventListener('fetch', (event) => {
 
   // 2. Scripts (.js), Stylesheets (.css), HTML pages, Manifests: NETWORK-FIRST
   // This guarantees that any script or style update is fetched and applied immediately!
-  const isCodeOrMarkup = 
+  const isCodeOrMarkup =
     req.mode === 'navigate' ||
     req.destination === 'script' ||
     req.destination === 'style' ||

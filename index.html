@@ -263,8 +263,31 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">Theme Accent Color</label>
-          <div class="color-swatches" id="color-swatches"></div>
+          <div class="color-picker-header">
+            <label class="form-label" style="margin-bottom: 0;">Theme Accent Color</label>
+            <div class="color-active-display" id="player-color-preview-badge" title="Selected Color Preview">
+              <span class="color-active-dot" id="player-color-active-dot"></span>
+              <span class="color-active-hex" id="player-color-active-hex">#00F0FF</span>
+            </div>
+          </div>
+          <div class="player-color-selector">
+            <div class="color-swatches" id="color-swatches"></div>
+            <div class="custom-color-picker-group">
+              <label class="custom-color-swatch-btn" id="custom-color-swatch-btn" title="Pick any custom color with Color Picker">
+                <input type="color" id="player-color-picker" class="custom-color-native-input" value="#00f0ff">
+                <svg class="color-picker-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m15 11-1 1"></path>
+                  <path d="m19 7-3-3"></path>
+                  <path d="M2 22l5.5-1.5L21.1 6.9a2.12 2.12 0 0 0 0-3l-1-1a2.12 2.12 0 0 0-3 0L3.5 16.5 2 22z"></path>
+                </svg>
+                <span>Picker</span>
+              </label>
+              <div class="custom-hex-input-wrap" title="Enter 6-digit Hex Color Code">
+                <span class="custom-hex-prefix">#</span>
+                <input type="text" class="custom-hex-text-input" id="player-hex-text-input" value="00F0FF" maxlength="6" placeholder="00F0FF" spellcheck="false" autocomplete="off">
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -504,22 +527,22 @@
           <span>LAYOUT & TEXT ADJUSTMENT</span>
         </div>
 
-        <!-- Name Size Control -->
+        <!-- Name Size Control (Doubled limit up to 8.0rem) -->
         <div class="blank-slider-row">
           <div class="blank-slider-header">
             <span class="blank-row-name">Player Name Size</span>
             <span class="blank-slider-value" id="blank-val-name-size">2.2rem</span>
           </div>
-          <input type="range" class="blank-range-slider" id="blank-slider-name-size" min="1.2" max="4.0" step="0.1" value="2.2">
+          <input type="range" class="blank-range-slider" id="blank-slider-name-size" min="1.0" max="8.0" step="0.1" value="2.2">
         </div>
 
-        <!-- Counter Number Size Control -->
+        <!-- Counter Number Size Control (Doubled limit up to 36rem) -->
         <div class="blank-slider-row">
           <div class="blank-slider-header">
             <span class="blank-row-name">Counter Number Size</span>
             <span class="blank-slider-value" id="blank-val-score-size">11rem</span>
           </div>
-          <input type="range" class="blank-range-slider" id="blank-slider-score-size" min="6" max="18" step="0.5" value="11">
+          <input type="range" class="blank-range-slider" id="blank-slider-score-size" min="6" max="36" step="0.5" value="11">
         </div>
 
         <!-- Distance / Gap Control between Name & Number -->
@@ -528,7 +551,7 @@
             <span class="blank-row-name">Distance (Name to Number)</span>
             <span class="blank-slider-value" id="blank-val-gap">16px</span>
           </div>
-          <input type="range" class="blank-range-slider" id="blank-slider-gap" min="0" max="80" step="2" value="16">
+          <input type="range" class="blank-range-slider" id="blank-slider-gap" min="0" max="160" step="2" value="16">
         </div>
 
         <!-- Vertical Position (Shift Up / Down) -->
@@ -537,7 +560,7 @@
             <span class="blank-row-name">Vertical Position Offset</span>
             <span class="blank-slider-value" id="blank-val-shift">-15px</span>
           </div>
-          <input type="range" class="blank-range-slider" id="blank-slider-shift" min="-120" max="120" step="5" value="-15">
+          <input type="range" class="blank-range-slider" id="blank-slider-shift" min="-200" max="200" step="5" value="-15">
         </div>
 
         <!-- Reset Layout Defaults Button -->
@@ -546,6 +569,12 @@
             ↺ Default Layout
           </button>
         </div>
+
+        <!-- Section Divider: Player Screen Colors -->
+        <div class="blank-settings-divider">
+          <span>PLAYER SCREEN COLORS</span>
+        </div>
+        <div class="blank-player-colors-list" id="blank-player-colors-list"></div>
 
         <!-- Exit Blank Mode Button -->
         <button class="blank-exit-mode-btn" id="blank-exit-mode-btn">

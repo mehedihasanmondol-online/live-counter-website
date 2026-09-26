@@ -15,7 +15,7 @@
   const updateActionBtn = document.getElementById('pwa-update-btn');
 
   // Automatic Cache Purge: Wipes legacy caches on client whenever version bumps
-  const APP_VERSION = 'v1.2.9';
+  const APP_VERSION = 'v1.3.3';
   try {
     const storedVersion = localStorage.getItem('arena_counter_version');
     if (storedVersion !== APP_VERSION) {
@@ -28,7 +28,7 @@
         });
       }
     }
-  } catch (e) {}
+  } catch (e) { }
 
   // 1. Register Service Worker with instant updates
   if ('serviceWorker' in navigator) {
@@ -40,7 +40,7 @@
           console.log('[PWA] Service Worker registered with scope:', registration.scope);
 
           // Actively check for updates immediately
-          registration.update().catch(() => {});
+          registration.update().catch(() => { });
 
           // If a new worker is waiting, activate it immediately
           if (registration.waiting) {
