@@ -4586,7 +4586,8 @@ body.blank-mode .card-header {
 }
 
 body.blank-mode .player-meta {
-  width: auto !important;
+  width: 98% !important;
+  max-width: 98% !important;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
@@ -4596,8 +4597,8 @@ body.blank-mode .player-details {
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-  width: auto !important;
-  max-width: 100% !important;
+  width: 98% !important;
+  max-width: 98% !important;
 }
 
 body.blank-mode .player-title-row {
@@ -4605,7 +4606,8 @@ body.blank-mode .player-title-row {
   justify-content: center !important;
   align-items: center !important;
   gap: 8px !important;
-  max-width: 100% !important;
+  width: 98% !important;
+  max-width: 98% !important;
 }
 
 /* Player Name: Bold, clean, contrast-aware font, user-adjustable size up to 8rem */
@@ -4619,9 +4621,12 @@ body.blank-mode .player-name {
   text-align: center !important;
   text-transform: none !important;
   line-height: 1.15 !important;
-  max-width: 95% !important;
-  overflow-wrap: break-word !important;
-  word-break: break-word !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 98% !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
 }
 
 /* Leader crown: Only visible on the leader's card, strictly hidden on others */
