@@ -85,6 +85,34 @@
   const autoPlayBtn = document.getElementById('auto-play-btn');
   const autoPlayTogglePill = document.getElementById('auto-play-toggle-pill');
 
+  // Blank Mode DOM Elements
+  const blankModeBtn = document.getElementById('blank-mode-btn');
+  const blankModeTogglePill = document.getElementById('blank-mode-toggle-pill');
+  const blankModeGearBtn = document.getElementById('blank-mode-gear-btn');
+  const blankModeResetBtn = document.getElementById('blank-mode-reset-btn');
+  const blankSettingsPopover = document.getElementById('blank-settings-popover');
+  const blankSettingsCloseBtn = document.getElementById('blank-settings-close-btn');
+  const blankPopoverToggleBtn = document.getElementById('blank-popover-toggle-btn');
+  const blankPopoverTogglePill = document.getElementById('blank-popover-toggle-pill');
+  const blankPopoverFullscreenBtn = document.getElementById('blank-popover-fullscreen-btn');
+  const blankPopoverSoundBtn = document.getElementById('blank-popover-sound-btn');
+  const blankPopoverSoundPill = document.getElementById('blank-popover-sound-pill');
+  const blankPopoverAutoplayBtn = document.getElementById('blank-popover-autoplay-btn');
+  const blankPopoverAutoplayPill = document.getElementById('blank-popover-autoplay-pill');
+  const blankPopoverResetBtn = document.getElementById('blank-popover-reset-btn');
+  const blankExitModeBtn = document.getElementById('blank-exit-mode-btn');
+
+  let isBlankMode = false;
+
+  // Blank Mode Customizable Typography & Distance State
+  const DEFAULT_BLANK_LAYOUT = {
+    nameSize: 2.2,     // rem
+    scoreSize: 11.0,   // rem
+    gap: 16,           // px
+    shiftY: -15        // px
+  };
+
+  let blankLayout = { ...DEFAULT_BLANK_LAYOUT };
   let isAutoPlayActive = false;
   let autoPlayTimer = null;
   let autoPlayWatchdog = null;
@@ -126,10 +154,12 @@
 
   function init() {
     loadState();
+    loadBlankLayout();
     renderArena();
     updateTimerDisplay();
     updateSoundButton();
     updateAutoPlayUI();
+    updateBlankModeUI();
     setupEventListeners();
     setupKeyboardHotkeys();
     setupAutoPlayEngine();
@@ -142,6 +172,7 @@
       localStorage.setItem('live_counter_initial_score', initialScore.toString());
       localStorage.setItem('live_counter_theme', currentTheme);
       localStorage.setItem('live_counter_autoplay', isAutoPlayActive ? 'true' : 'false');
+      localStorage.setItem('live_counter_blank_mode', isBlankMode ? 'true' : 'false');
     } catch (e) {
       console.warn('Storage save failed:', e);
     }
@@ -184,6 +215,11 @@
       const savedAutoPlay = localStorage.getItem('live_counter_autoplay');
       if (savedAutoPlay === 'true') {
         isAutoPlayActive = true;
+      }
+
+      const savedBlankMode = localStorage.getItem('live_counter_blank_mode');
+      if (savedBlankMode === 'true') {
+        isBlankMode = true;
       }
     } catch (e) {
       players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
@@ -266,6 +302,27 @@
      Arena & Cards Rendering
      ========================================================================== */
 
+  function isColorLight(color) {
+    if (!color) return false;
+    let r = 255, g = 255, b = 255;
+    if (color.startsWith('#')) {
+      let hex = color.replace('#', '');
+      if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+      r = parseInt(hex.substr(0, 2), 16) || 0;
+      g = parseInt(hex.substr(2, 2), 16) || 0;
+      b = parseInt(hex.substr(4, 2), 16) || 0;
+    } else if (color.includes('rgb')) {
+      const parts = color.match(/\d+/g);
+      if (parts && parts.length >= 3) {
+        r = parseInt(parts[0], 10);
+        g = parseInt(parts[1], 10);
+        b = parseInt(parts[2], 10);
+      }
+    }
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 150;
+  }
+
   const arenaListeners = [];
   function notifyListeners() {
     arenaListeners.forEach(fn => {
@@ -307,6 +364,10 @@
       card.style.setProperty('--player-color', player.color);
       card.style.setProperty('--player-color-rgb', player.colorRgb);
 
+      const isLight = isColorLight(player.color);
+      card.style.setProperty('--blank-text-color', isLight ? '#121212' : '#ffffff');
+      card.style.setProperty('--blank-text-shadow', isLight ? '0 2px 8px rgba(0, 0, 0, 0.14)' : '0 4px 18px rgba(0, 0, 0, 0.25)');
+
       card.innerHTML = `
         <!-- Full-bleed Player Background Artwork Layer with Slot Reel Track -->
         <div class="card-bg-layer" id="card-bg-layer-${player.id}">
@@ -325,6 +386,7 @@
             </div>
             <div class="player-details">
               <div class="player-title-row">
+                ${isLeader ? `<span class="blank-leader-crown" title="Match Leader">👑</span>` : ''}
                 <span class="player-name">${escapeHtml(player.name)}</span>
               </div>
               <span class="player-tag">${escapeHtml(player.tag || `PLAYER ${index + 1}`)}</span>
@@ -1323,6 +1385,142 @@
     }
   }
 
+  /* ==========================================================================
+     Blank Mode Engine
+     ========================================================================== */
+
+  function toggleBlankMode(forceVal = null) {
+    if (forceVal !== null) {
+      isBlankMode = !!forceVal;
+    } else {
+      isBlankMode = !isBlankMode;
+    }
+
+    saveState();
+    updateBlankModeUI();
+
+    if (window.soundEngine && window.soundEngine.playIncrement) {
+      window.soundEngine.playIncrement();
+    }
+  }
+
+  function updateBlankModeUI() {
+    document.body.classList.toggle('blank-mode', isBlankMode);
+
+    if (blankModeBtn) {
+      blankModeBtn.classList.toggle('active', isBlankMode);
+    }
+    if (blankModeTogglePill) {
+      blankModeTogglePill.classList.toggle('active', isBlankMode);
+      blankModeTogglePill.innerText = isBlankMode ? 'ON' : 'OFF';
+    }
+    if (blankPopoverToggleBtn) {
+      blankPopoverToggleBtn.classList.toggle('active', isBlankMode);
+    }
+    if (blankPopoverTogglePill) {
+      blankPopoverTogglePill.innerText = isBlankMode ? 'ON' : 'OFF';
+    }
+
+    // Close 3-dot dropdown if opened
+    if (secondaryActionsGroup && isBlankMode) {
+      secondaryActionsGroup.classList.remove('show');
+    }
+
+    // Close blank settings popover if exiting blank mode
+    if (!isBlankMode && blankSettingsPopover) {
+      blankSettingsPopover.classList.remove('show');
+    }
+
+    updateBlankPopoverUI();
+  }
+
+  function updateBlankPopoverUI() {
+    if (blankPopoverSoundPill) {
+      const isMuted = window.soundEngine ? window.soundEngine.isMuted() : false;
+      blankPopoverSoundPill.innerText = isMuted ? 'OFF' : 'ON';
+      if (blankPopoverSoundBtn) {
+        blankPopoverSoundBtn.classList.toggle('active', !isMuted);
+      }
+    }
+    if (blankPopoverAutoplayPill) {
+      blankPopoverAutoplayPill.innerText = isAutoPlayActive ? 'ON' : 'OFF';
+      if (blankPopoverAutoplayBtn) {
+        blankPopoverAutoplayBtn.classList.toggle('active', isAutoPlayActive);
+      }
+    }
+    applyBlankLayoutCSS();
+  }
+
+  function applyBlankLayoutCSS() {
+    const root = document.documentElement;
+    root.style.setProperty('--blank-name-size', `${blankLayout.nameSize}rem`);
+    root.style.setProperty('--blank-score-size', `${blankLayout.scoreSize}rem`);
+    root.style.setProperty('--blank-name-gap', `${blankLayout.gap}px`);
+    root.style.setProperty('--blank-shift-y', `${blankLayout.shiftY}px`);
+
+    const sliderNameSize = document.getElementById('blank-slider-name-size');
+    const valNameSize = document.getElementById('blank-val-name-size');
+    if (sliderNameSize) sliderNameSize.value = blankLayout.nameSize;
+    if (valNameSize) valNameSize.innerText = `${blankLayout.nameSize}rem`;
+
+    const sliderScoreSize = document.getElementById('blank-slider-score-size');
+    const valScoreSize = document.getElementById('blank-val-score-size');
+    if (sliderScoreSize) sliderScoreSize.value = blankLayout.scoreSize;
+    if (valScoreSize) valScoreSize.innerText = `${blankLayout.scoreSize}rem`;
+
+    const sliderGap = document.getElementById('blank-slider-gap');
+    const valGap = document.getElementById('blank-val-gap');
+    if (sliderGap) sliderGap.value = blankLayout.gap;
+    if (valGap) valGap.innerText = `${blankLayout.gap}px`;
+
+    const sliderShift = document.getElementById('blank-slider-shift');
+    const valShift = document.getElementById('blank-val-shift');
+    if (sliderShift) sliderShift.value = blankLayout.shiftY;
+    if (valShift) valShift.innerText = `${blankLayout.shiftY}px`;
+  }
+
+  function saveBlankLayout() {
+    try {
+      localStorage.setItem('live_counter_blank_layout', JSON.stringify(blankLayout));
+    } catch (e) {
+      console.warn('Failed to save blank layout:', e);
+    }
+  }
+
+  function loadBlankLayout() {
+    try {
+      const saved = localStorage.getItem('live_counter_blank_layout');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        blankLayout = {
+          nameSize: typeof parsed.nameSize === 'number' ? parsed.nameSize : DEFAULT_BLANK_LAYOUT.nameSize,
+          scoreSize: typeof parsed.scoreSize === 'number' ? parsed.scoreSize : DEFAULT_BLANK_LAYOUT.scoreSize,
+          gap: typeof parsed.gap === 'number' ? parsed.gap : DEFAULT_BLANK_LAYOUT.gap,
+          shiftY: typeof parsed.shiftY === 'number' ? parsed.shiftY : DEFAULT_BLANK_LAYOUT.shiftY
+        };
+      } else {
+        blankLayout = { ...DEFAULT_BLANK_LAYOUT };
+      }
+    } catch (e) {
+      blankLayout = { ...DEFAULT_BLANK_LAYOUT };
+    }
+    applyBlankLayoutCSS();
+  }
+
+  function resetAllScores(askConfirm = true) {
+    if (askConfirm && !confirm(`Are you sure you want to reset all scores to ${initialScore}?`)) {
+      return;
+    }
+    players.forEach(p => p.score = initialScore);
+    goldenGoalLastWinnerId = null;
+    goldenGoalStreak = 0;
+    undoStack = [];
+    saveState();
+    if (window.soundEngine) window.soundEngine.playReset();
+    if (window.confettiEngine) window.confettiEngine.clear();
+    renderArena();
+  }
+
   function updateSoundButton() {
     const muted = window.soundEngine ? window.soundEngine.isMuted() : false;
     const iconSvg = muted
@@ -1587,16 +1785,7 @@
 
     // Reset Match Scores
     resetBtn.addEventListener('click', () => {
-      if (confirm(`Are you sure you want to reset all scores to ${initialScore}?`)) {
-        players.forEach(p => p.score = initialScore);
-        goldenGoalLastWinnerId = null;
-        goldenGoalStreak = 0;
-        undoStack = [];
-        saveState();
-        if (window.soundEngine) window.soundEngine.playReset();
-        if (window.confettiEngine) window.confettiEngine.clear();
-        renderArena();
-      }
+      resetAllScores(true);
     });
 
     // Add Player button
@@ -1647,6 +1836,164 @@
         toggleAutoPlay();
       });
     }
+
+    // Blank Mode button in 3-dot dropdown menu
+    if (blankModeBtn) {
+      blankModeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleBlankMode();
+      });
+    }
+
+    // Blank Mode floating Gear button (top right)
+    if (blankModeGearBtn && blankSettingsPopover) {
+      blankModeGearBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        blankSettingsPopover.classList.toggle('show');
+        updateBlankPopoverUI();
+      });
+    }
+
+    // Blank Mode floating Reset button (bottom center)
+    if (blankModeResetBtn) {
+      blankModeResetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const icon = blankModeResetBtn.querySelector('.blank-reset-icon');
+        if (icon) {
+          icon.classList.add('spin-anim');
+          setTimeout(() => icon.classList.remove('spin-anim'), 500);
+        }
+        resetAllScores(false);
+      });
+    }
+
+    // Blank Settings popover close button
+    if (blankSettingsCloseBtn && blankSettingsPopover) {
+      blankSettingsCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        blankSettingsPopover.classList.remove('show');
+      });
+    }
+
+    // Popover Blank Mode switch
+    if (blankPopoverToggleBtn) {
+      blankPopoverToggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleBlankMode();
+      });
+    }
+
+    // Popover Exit Blank Mode button
+    if (blankExitModeBtn) {
+      blankExitModeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleBlankMode(false);
+      });
+    }
+
+    // Popover Fullscreen button
+    if (blankPopoverFullscreenBtn) {
+      blankPopoverFullscreenBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      });
+    }
+
+    // Popover Sound button
+    if (blankPopoverSoundBtn) {
+      blankPopoverSoundBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.soundEngine) {
+          window.soundEngine.toggleMute();
+          updateSoundButton();
+          updateBlankPopoverUI();
+        }
+      });
+    }
+
+    // Popover Auto Play button
+    if (blankPopoverAutoplayBtn) {
+      blankPopoverAutoplayBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleAutoPlay();
+        updateBlankPopoverUI();
+      });
+    }
+
+    // Popover Reset Scores button
+    if (blankPopoverResetBtn) {
+      blankPopoverResetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetAllScores(false);
+        if (blankSettingsPopover) {
+          blankSettingsPopover.classList.remove('show');
+        }
+      });
+    }
+
+    // Blank Mode Layout Sliders (Live adjustments for typography & distance)
+    const sliderNameSize = document.getElementById('blank-slider-name-size');
+    if (sliderNameSize) {
+      sliderNameSize.addEventListener('input', (e) => {
+        blankLayout.nameSize = parseFloat(e.target.value);
+        applyBlankLayoutCSS();
+        saveBlankLayout();
+      });
+    }
+
+    const sliderScoreSize = document.getElementById('blank-slider-score-size');
+    if (sliderScoreSize) {
+      sliderScoreSize.addEventListener('input', (e) => {
+        blankLayout.scoreSize = parseFloat(e.target.value);
+        applyBlankLayoutCSS();
+        saveBlankLayout();
+      });
+    }
+
+    const sliderGap = document.getElementById('blank-slider-gap');
+    if (sliderGap) {
+      sliderGap.addEventListener('input', (e) => {
+        blankLayout.gap = parseInt(e.target.value, 10);
+        applyBlankLayoutCSS();
+        saveBlankLayout();
+      });
+    }
+
+    const sliderShift = document.getElementById('blank-slider-shift');
+    if (sliderShift) {
+      sliderShift.addEventListener('input', (e) => {
+        blankLayout.shiftY = parseInt(e.target.value, 10);
+        applyBlankLayoutCSS();
+        saveBlankLayout();
+      });
+    }
+
+    // Blank Mode Reset Layout Defaults Button
+    const resetLayoutBtn = document.getElementById('blank-reset-layout-btn');
+    if (resetLayoutBtn) {
+      resetLayoutBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        blankLayout = { ...DEFAULT_BLANK_LAYOUT };
+        applyBlankLayoutCSS();
+        saveBlankLayout();
+        if (window.soundEngine && window.soundEngine.playIncrement) {
+          window.soundEngine.playIncrement();
+        }
+      });
+    }
+
+    // Document click to close Blank Settings Popover when clicking outside
+    document.addEventListener('click', (e) => {
+      if (blankSettingsPopover && blankSettingsPopover.classList.contains('show')) {
+        if (!blankSettingsPopover.contains(e.target) && !blankModeGearBtn.contains(e.target)) {
+          blankSettingsPopover.classList.remove('show');
+        }
+      }
+    });
 
     // Header More Options Popover Menu (3-Dot Menu)
     if (headerMoreBtn && secondaryActionsGroup) {
@@ -1839,6 +2186,22 @@
         return;
       }
 
+      // B -> Blank Mode Toggle
+      if ((e.key === 'b' || e.key === 'B') && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        toggleBlankMode();
+        e.preventDefault();
+        return;
+      }
+
+      // Escape -> Close Blank Mode Settings Popover if open
+      if (e.key === 'Escape') {
+        if (blankSettingsPopover && blankSettingsPopover.classList.contains('show')) {
+          blankSettingsPopover.classList.remove('show');
+          e.preventDefault();
+          return;
+        }
+      }
+
       // ? or / -> Shortcuts modal
       if (e.key === '?' || e.key === '/') {
         shortcutsModal.classList.toggle('show');
@@ -1883,6 +2246,8 @@
     setInitialScore: (val, update) => setInitialScore(val, update),
     isAutoPlayActive: () => isAutoPlayActive,
     toggleAutoPlay: (force) => toggleAutoPlay(force),
+    isBlankModeActive: () => isBlankMode,
+    toggleBlankMode: (force) => toggleBlankMode(force),
     isHomePageActive: () => isHomePageActive(),
     executeRematch: (isAuto) => executeRematch(isAuto),
     clearAutoRematchTimer: () => clearAutoRematchTimer(),

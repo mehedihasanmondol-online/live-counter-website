@@ -527,6 +527,70 @@ body.stream-mode .app-header:hover {
   box-shadow: 0 0 10px rgba(0, 255, 136, 0.4);
 }
 
+/* Blank Mode Action Button inside 3-Dot Menu */
+.blank-mode-action-btn {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between !important;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.blank-mode-action-btn:hover {
+  background: rgba(0, 240, 255, 0.08);
+  border-color: rgba(0, 240, 255, 0.3);
+}
+
+.blank-mode-action-btn.active {
+  background: rgba(0, 240, 255, 0.16);
+  border-color: rgba(0, 240, 255, 0.55);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+}
+
+.blank-mode-btn-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+}
+
+.blank-mode-btn-left svg {
+  color: var(--accent-cyan);
+  transition: transform 0.2s ease, color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.blank-mode-action-btn.active .blank-mode-btn-left svg {
+  color: #00f0ff;
+  transform: scale(1.15);
+}
+
+.blank-mode-toggle-pill {
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  transition: all var(--transition-fast);
+}
+
+.blank-mode-toggle-pill.active {
+  background: rgba(0, 240, 255, 0.25);
+  color: #00f0ff;
+  border-color: rgba(0, 240, 255, 0.6);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
 /* Floating Golden Goal Button when Auto Play Active */
 .random-goal-floating-btn.auto-playing {
   box-shadow: 0 0 24px rgba(0, 255, 136, 0.45), 0 8px 30px rgba(0, 0, 0, 0.6) !important;
@@ -3803,6 +3867,665 @@ body.stream-mode .random-goal-floating-btn {
     bottom: 16px;
     max-width: none;
     padding: 12px 16px;
+  }
+}
+
+/* ==========================================================================
+   Blank Mode Engine & Aesthetics
+   Minimalist, full-bleed split-screen counter mode
+   ========================================================================== */
+
+/* 1. Floating Settings Gear Button (Top-Right) */
+.blank-mode-gear-btn {
+  display: none;
+  position: fixed;
+  top: clamp(12px, 2.5vh, 22px);
+  right: clamp(12px, 2.5vw, 22px);
+  width: clamp(38px, 5.2vw, 46px);
+  height: clamp(38px, 5.2vw, 46px);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.blank-mode-gear-btn:hover {
+  background: rgba(255, 255, 255, 0.38);
+  transform: rotate(45deg) scale(1.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32);
+}
+
+.blank-mode-gear-btn:active {
+  transform: rotate(45deg) scale(0.94);
+}
+
+/* 2. Floating Circular Reset Button (Bottom-Center) */
+.blank-mode-reset-btn {
+  display: none;
+  position: fixed;
+  bottom: clamp(14px, 3.5vh, 28px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(42px, 5.6vw, 50px);
+  height: clamp(42px, 5.6vw, 50px);
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1.5px solid rgba(0, 0, 0, 0.14);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.16);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, box-shadow 0.18s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.blank-mode-reset-btn:hover {
+  background: #ffffff;
+  transform: translateX(-50%) scale(1.1);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.38);
+}
+
+.blank-mode-reset-btn:active {
+  transform: translateX(-50%) scale(0.92);
+}
+
+.blank-mode-reset-btn .blank-reset-icon.spin-anim {
+  animation: blankResetSpin 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes blankResetSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+/* 3. Floating Quick Settings Popover for Blank Mode */
+.blank-settings-popover {
+  display: none;
+  position: fixed;
+  top: clamp(62px, 8.5vh, 76px);
+  right: clamp(12px, 2.5vw, 24px);
+  z-index: 1100;
+  animation: popoverFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.blank-settings-popover.show {
+  display: block;
+}
+
+@keyframes popoverFadeIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.blank-settings-card {
+  width: min(340px, calc(100vw - 28px));
+  max-height: min(580px, calc(100vh - 90px));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 240, 255, 0.4) transparent;
+  background: linear-gradient(180deg, rgba(16, 22, 38, 0.98) 0%, rgba(8, 12, 22, 0.99) 100%);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 16px;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 240, 255, 0.2);
+  padding: 16px;
+  color: #fff;
+}
+
+.blank-settings-card::-webkit-scrollbar {
+  width: 5px;
+}
+.blank-settings-card::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.4);
+  border-radius: 4px;
+}
+
+.blank-settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 12px;
+}
+
+.blank-settings-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent-cyan);
+}
+
+.blank-settings-title {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #fff;
+}
+
+.blank-settings-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: var(--text-muted);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  transition: all 0.15s ease;
+}
+
+.blank-settings-close-btn:hover {
+  background: rgba(255, 42, 109, 0.25);
+  color: #ff2a6d;
+}
+
+.blank-settings-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.blank-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.blank-row-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.blank-row-name {
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.blank-row-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.blank-switch-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 14px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.blank-switch-toggle .blank-switch-pill {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+
+.blank-switch-toggle.active {
+  background: rgba(0, 240, 255, 0.24);
+  border-color: rgba(0, 240, 255, 0.6);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.35);
+}
+
+.blank-switch-toggle.active .blank-switch-pill {
+  color: #00f0ff;
+}
+
+.blank-action-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.blank-action-mini-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.blank-action-mini-btn.danger:hover {
+  background: rgba(255, 42, 109, 0.25);
+  border-color: rgba(255, 42, 109, 0.5);
+  color: #ff2a6d;
+}
+
+/* Layout Adjustment Controls in Popover */
+.blank-settings-divider {
+  display: flex;
+  align-items: center;
+  margin: 8px 0 2px;
+  padding: 6px 0 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.blank-settings-divider span {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--accent-cyan);
+  text-transform: uppercase;
+}
+
+.blank-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.blank-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.blank-slider-value {
+  font-family: var(--font-score, 'Bebas Neue', sans-serif);
+  font-size: 1.15rem;
+  letter-spacing: 0.5px;
+  color: var(--accent-cyan);
+}
+
+.blank-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.blank-range-slider:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.blank-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.blank-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.blank-range-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00f0ff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+  cursor: pointer;
+  border: none;
+}
+
+.blank-exit-mode-btn {
+  margin-top: 6px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(255, 42, 109, 0.2) 0%, rgba(255, 42, 109, 0.35) 100%);
+  border: 1px solid rgba(255, 42, 109, 0.6);
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.blank-exit-mode-btn:hover {
+  background: rgba(255, 42, 109, 0.45);
+  box-shadow: 0 0 16px rgba(255, 42, 109, 0.4);
+  transform: translateY(-1px);
+}
+
+.blank-exit-mode-btn kbd {
+  background: rgba(0, 0, 0, 0.35);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ==========================================================================
+   4. ACTIVE BLANK MODE STYLING (body.blank-mode)
+   Completely borderless, solid-color split-screen
+   ========================================================================== */
+
+body.blank-mode {
+  overflow: hidden !important;
+  background: #000000 !important;
+}
+
+/* Hide all standard non-blank UI components */
+body.blank-mode .app-header,
+body.blank-mode .stream-mode-trigger,
+body.blank-mode .exit-stream-btn,
+body.blank-mode .random-goal-floating-btn,
+body.blank-mode .penalty-floating-btn,
+body.blank-mode .screen-marked-name-banner,
+body.blank-mode .vs-divider,
+body.blank-mode .card-bg-layer,
+body.blank-mode .avatar-wrapper,
+body.blank-mode .player-tag,
+body.blank-mode .card-actions,
+body.blank-mode .swipe-hint,
+body.blank-mode .card-footer {
+  display: none !important;
+}
+
+/* Remove all backgrounds, borders, shadows, and paddings from name area */
+body.blank-mode .card-header,
+body.blank-mode .player-meta,
+body.blank-mode .player-details,
+body.blank-mode .player-title-row {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Show Blank Mode Floating Controls */
+body.blank-mode .blank-mode-gear-btn {
+  display: flex !important;
+}
+
+body.blank-mode .blank-mode-reset-btn {
+  display: flex !important;
+}
+
+/* Arena Container fills the entire viewport edge-to-edge */
+body.blank-mode .arena-container {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  z-index: 10 !important;
+}
+
+/* Arena Grid fills 100% with no gap */
+body.blank-mode .arena-grid {
+  width: 100% !important;
+  height: 100% !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* 2 Players: 50/50 horizontal split (landscape & standard) */
+body.blank-mode .arena-grid.players-2 {
+  grid-template-columns: 1fr 1fr !important;
+  grid-template-rows: 1fr !important;
+}
+
+/* 1 Player */
+body.blank-mode .arena-grid.players-1 {
+  grid-template-columns: 1fr !important;
+  grid-template-rows: 1fr !important;
+}
+
+/* Player Cards: Solid player color background, centered Name + Score unified column */
+body.blank-mode .player-card {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: var(--player-color) !important;
+  transform: none !important;
+  transition: background-color 0.2s ease !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  height: 100% !important;
+  width: 100% !important;
+  position: relative !important;
+  cursor: pointer !important;
+}
+
+body.blank-mode .player-card:hover {
+  transform: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+body.blank-mode .player-card.swipe-up-active,
+body.blank-mode .player-card.swipe-down-active {
+  transform: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Clean hairline divider line between player columns */
+body.blank-mode .player-card:not(:last-child) {
+  border-right: 1.5px solid rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Card Header: Positioned closely above the score number */
+body.blank-mode .card-header {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin-bottom: var(--blank-name-gap, 16px) !important;
+  transform: translateY(var(--blank-shift-y, -15px)) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 20 !important;
+  pointer-events: none !important;
+}
+
+body.blank-mode .player-meta {
+  width: auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+body.blank-mode .player-details {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: auto !important;
+}
+
+body.blank-mode .player-title-row {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+/* Player Name: Bold, clean, contrast-aware font, user-adjustable size */
+body.blank-mode .player-name {
+  font-family: var(--font-display, 'Outfit', -apple-system, sans-serif) !important;
+  font-size: var(--blank-name-size, clamp(1.8rem, 3.6vw, 2.6rem)) !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.5px !important;
+  color: var(--blank-text-color, #ffffff) !important;
+  text-shadow: var(--blank-text-shadow, 0 2px 10px rgba(0, 0, 0, 0.2)) !important;
+  text-align: center !important;
+  text-transform: none !important;
+  line-height: 1.15 !important;
+}
+
+/* Leader crown: Only visible on the leader's card, strictly hidden on others */
+body.blank-mode .blank-leader-crown {
+  display: inline-block;
+  font-size: clamp(1.3rem, 2.6vw, 2.2rem);
+  vertical-align: middle;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+  margin-right: 8px;
+}
+
+body.blank-mode .player-card:not(.is-leader) .blank-leader-crown {
+  display: none !important;
+}
+
+/* Score Zone & Number: Positioned closely under the name */
+body.blank-mode .score-zone {
+  flex: 0 0 auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: auto !important;
+  padding: 0 !important;
+  transform: translateY(var(--blank-shift-y, -15px)) !important;
+}
+
+body.blank-mode .score-display-wrapper {
+  position: relative !important;
+  width: auto !important;
+  height: auto !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+body.blank-mode .score-draggable-badge {
+  position: relative !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+body.blank-mode .score-draggable-badge:hover {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body.blank-mode .score-number {
+  font-family: var(--font-score, 'Bebas Neue', sans-serif) !important;
+  font-size: var(--blank-score-size, clamp(7.5rem, 18vw, 15rem)) !important;
+  font-weight: 900 !important;
+  line-height: 0.86 !important;
+  letter-spacing: 1px !important;
+  color: var(--blank-text-color, #ffffff) !important;
+  text-shadow: var(--blank-text-shadow, 0 4px 20px rgba(0, 0, 0, 0.2)) !important;
+  transition: transform 0.15s ease !important;
+}
+
+/* Score number pop animations without altering the contrast color */
+body.blank-mode .score-number.pop-up {
+  animation: blankNumberPopUp 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes blankNumberPopUp {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1) translateY(-4px); }
+  100% { transform: scale(1); }
+}
+
+body.blank-mode .score-number.pop-down {
+  animation: blankNumberPopDown 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+}
+
+@keyframes blankNumberPopDown {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.92) translateY(4px); }
+  100% { transform: scale(1); }
+}
+
+/* Responsive adjustment for Mobile Portrait */
+@media (max-width: 768px) and (orientation: portrait) {
+  body.blank-mode .arena-grid.players-2 {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 1fr 1fr !important;
+  }
+
+  body.blank-mode .player-card:not(:last-child) {
+    border-right: none !important;
+    border-bottom: 1.5px solid rgba(0, 0, 0, 0.12) !important;
+  }
+
+  body.blank-mode .blank-mode-reset-btn {
+    top: 50%;
+    bottom: auto;
+    transform: translate(-50%, -50%);
+  }
+
+  body.blank-mode .blank-mode-reset-btn:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+
+  body.blank-mode .blank-mode-reset-btn:active {
+    transform: translate(-50%, -50%) scale(0.92);
   }
 }
 
