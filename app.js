@@ -451,6 +451,13 @@
         </div>
 
         <div class="score-zone" data-id="${player.id}">
+          <!-- Floating Fast Scrub / Turbo HUD -->
+          <div class="scrub-hud" id="scrub-hud-${player.id}">
+            <span class="scrub-hud-icon">↕</span>
+            <span class="scrub-hud-label">FAST SCRUB</span>
+            <span class="scrub-hud-delta" id="scrub-delta-${player.id}">+0</span>
+          </div>
+
           <div class="swipe-hint hint-up">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"></polyline></svg>
             <span>Swipe Up +1</span>
@@ -459,7 +466,7 @@
           <div class="score-display-wrapper" id="score-wrapper-${player.id}">
             <div class="score-draggable-badge" id="score-drag-${player.id}" data-id="${player.id}"
                  style="left: ${player.posX !== undefined ? player.posX : 50}%; top: ${player.posY !== undefined ? player.posY : 50}%;"
-                 title="Click to +1 | Drag to reposition anywhere on card">
+                 title="Click to +1 | Swipe up/down | Long-press & drag to fast scrub">
               <div class="score-number" id="score-text-${player.id}">${player.score}</div>
             </div>
           </div>
@@ -493,142 +500,275 @@
   }
 
   /* ==========================================================================
-     Touch, Drag & Swipe Gestures (Number Drag, Swipe Up/Down, Card Click)
+     Touch, Drag & Swipe Gestures (Number Tap, Quick Swipe Up/Down, Long-Press Fast Scrub)
      ========================================================================== */
 
   function bindCardGestures(card, player) {
     const scoreZone = card.querySelector('.score-zone');
-    const dragBadge = card.querySelector('.score-draggable-badge');
+    if (!scoreZone) return;
 
-    // --- 1. Draggable Counter Number Logic ---
-    if (dragBadge) {
-      let startBadgeX = 0;
-      let startBadgeY = 0;
-      let isDraggingBadge = false;
-      let badgeMoved = false;
+    const scrubHud = card.querySelector('.scrub-hud');
+    const scrubDeltaEl = card.querySelector('.scrub-hud-delta');
+    const scrubLabelEl = card.querySelector('.scrub-hud-label');
+    const scrubIconEl = card.querySelector('.scrub-hud-icon');
 
-      dragBadge.addEventListener('pointerdown', (e) => {
-        // Stop event from triggering card background swipe
-        e.stopPropagation();
-        startBadgeX = e.clientX;
-        startBadgeY = e.clientY;
-        isDraggingBadge = true;
-        badgeMoved = false;
-        dragBadge.setPointerCapture(e.pointerId);
-      });
+    let startY = 0;
+    let startX = 0;
+    let currentY = 0;
+    let lastDragTickY = 0;
+    let startTime = 0;
+    let isPointerDown = false;
+    let isLongPressActive = false;
+    let longPressTimer = null;
+    let scrubInterval = null;
+    let currentIntervalMs = 90;
+    let lastAudioTick = 0;
+    let initialScoreAtGestureStart = player.score;
+    let totalScrubDelta = 0;
+    let hasMovedSignificantly = false;
 
-      dragBadge.addEventListener('pointermove', (e) => {
-        if (!isDraggingBadge) return;
-        const dx = e.clientX - startBadgeX;
-        const dy = e.clientY - startBadgeY;
+    function updateHud(dir, delta) {
+      if (!scrubHud) return;
+      scrubHud.classList.add('show');
+      if (dir > 0) {
+        scrubHud.classList.add('up');
+        scrubHud.classList.remove('down');
+        if (scrubIconEl) scrubIconEl.innerText = '▲';
+        if (scrubLabelEl) scrubLabelEl.innerText = Math.abs(delta) >= 20 ? 'TURBO +' : 'FAST +';
+        if (scrubDeltaEl) scrubDeltaEl.innerText = `+${delta}`;
+        card.classList.add('scrub-up');
+        card.classList.remove('scrub-down');
+      } else if (dir < 0) {
+        scrubHud.classList.add('down');
+        scrubHud.classList.remove('up');
+        if (scrubIconEl) scrubIconEl.innerText = '▼';
+        if (scrubLabelEl) scrubLabelEl.innerText = Math.abs(delta) >= 20 ? 'TURBO -' : 'FAST -';
+        if (scrubDeltaEl) scrubDeltaEl.innerText = `${delta}`;
+        card.classList.add('scrub-down');
+        card.classList.remove('scrub-up');
+      } else {
+        scrubHud.classList.remove('up', 'down');
+        if (scrubIconEl) scrubIconEl.innerText = '↕';
+        if (scrubLabelEl) scrubLabelEl.innerText = 'HOLD & DRAG';
+        if (scrubDeltaEl) scrubDeltaEl.innerText = delta >= 0 ? `+${delta}` : `${delta}`;
+        card.classList.remove('scrub-up', 'scrub-down');
+      }
+    }
 
-        if (Math.hypot(dx, dy) > 5) {
-          badgeMoved = true;
-          dragBadge.classList.add('is-dragging');
+    function doScrubTick(delta) {
+      if (delta === 0) return;
+      const prev = player.score;
+      const next = Math.max(0, player.score + delta);
+      if (prev === next && delta < 0) return; // Cannot drop below 0
 
-          const cardRect = card.getBoundingClientRect();
-          const relX = e.clientX - cardRect.left;
-          const relY = e.clientY - cardRect.top;
+      player.score = next;
+      totalScrubDelta += delta;
 
-          // Clamped boundaries (keeps counter nicely visible inside the card)
-          const percentX = Math.max(14, Math.min(86, (relX / cardRect.width) * 100));
-          const percentY = Math.max(18, Math.min(82, (relY / cardRect.height) * 100));
+      const scoreTextEl = document.getElementById(`score-text-${player.id}`);
+      if (scoreTextEl) {
+        scoreTextEl.innerText = player.score;
+      }
 
-          dragBadge.style.left = `${percentX.toFixed(2)}%`;
-          dragBadge.style.top = `${percentY.toFixed(2)}%`;
+      // Throttled sound effect (crisp, pleasant rate)
+      const now = Date.now();
+      if (now - lastAudioTick > 60) {
+        lastAudioTick = now;
+        if (window.soundEngine) {
+          if (delta > 0) window.soundEngine.playIncrement(player.score);
+          else window.soundEngine.playDecrement();
         }
-      });
+        if (navigator.vibrate) {
+          try { navigator.vibrate(10); } catch (e) {}
+        }
+      }
 
-      const finishBadgeDrag = (e) => {
-        if (!isDraggingBadge) return;
-        isDraggingBadge = false;
-        dragBadge.classList.remove('is-dragging');
+      updateHud(delta > 0 ? 1 : -1, totalScrubDelta);
 
-        if (badgeMoved) {
-          player.posX = parseFloat(dragBadge.style.left);
-          player.posY = parseFloat(dragBadge.style.top);
-          saveState();
+      // Check win condition during fast scrub
+      if (targetScore > 0 && player.score >= targetScore) {
+        stopScrubbing();
+        triggerWin(player);
+      }
+    }
+
+    function startScrubLoop() {
+      if (scrubInterval) clearInterval(scrubInterval);
+      currentIntervalMs = 90;
+
+      const tick = () => {
+        if (!isPointerDown || !isLongPressActive) {
+          clearInterval(scrubInterval);
+          return;
+        }
+
+        const diffY = currentY - startY;
+        const deadzone = 16;
+
+        if (diffY < -deadzone) {
+          // Pulled UP -> Increment
+          const pullDist = Math.abs(diffY) - deadzone;
+          doScrubTick(1);
+
+          // Dynamic interval adjustment (faster as pulled further)
+          let targetMs = 110;
+          if (pullDist > 140) targetMs = 28;
+          else if (pullDist > 70) targetMs = 50;
+          else if (pullDist > 30) targetMs = 80;
+
+          if (targetMs !== currentIntervalMs) {
+            currentIntervalMs = targetMs;
+            clearInterval(scrubInterval);
+            scrubInterval = setInterval(tick, currentIntervalMs);
+          }
+        } else if (diffY > deadzone) {
+          // Pulled DOWN -> Decrement
+          const pullDist = diffY - deadzone;
+          doScrubTick(-1);
+
+          let targetMs = 110;
+          if (pullDist > 140) targetMs = 28;
+          else if (pullDist > 70) targetMs = 50;
+          else if (pullDist > 30) targetMs = 80;
+
+          if (targetMs !== currentIntervalMs) {
+            currentIntervalMs = targetMs;
+            clearInterval(scrubInterval);
+            scrubInterval = setInterval(tick, currentIntervalMs);
+          }
         } else {
-          // If clicked without dragging -> +1
-          modifyScore(player.id, 1, e.clientX, e.clientY);
+          // In neutral deadzone
+          updateHud(0, totalScrubDelta);
         }
       };
 
-      dragBadge.addEventListener('pointerup', finishBadgeDrag);
-      dragBadge.addEventListener('pointercancel', () => {
-        isDraggingBadge = false;
-        dragBadge.classList.remove('is-dragging');
-      });
-
-      // Double-click badge to quickly re-center
-      dragBadge.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        player.posX = 50;
-        player.posY = 50;
-        dragBadge.style.left = '50%';
-        dragBadge.style.top = '50%';
-        saveState();
-      });
+      scrubInterval = setInterval(tick, currentIntervalMs);
     }
 
-    // --- 2. Card Background Swipe Logic (Swipe Up / Down) ---
-    let startY = 0;
-    let startX = 0;
-    let isDragging = false;
-    let hasMovedSignificantly = false;
-    const threshold = 35; // Pixels needed for swipe
+    function stopScrubbing() {
+      clearTimeout(longPressTimer);
+      if (scrubInterval) {
+        clearInterval(scrubInterval);
+        scrubInterval = null;
+      }
+      card.classList.remove('scrubbing-mode', 'scrub-up', 'scrub-down');
+      if (scrubHud) {
+        scrubHud.classList.remove('show', 'up', 'down');
+      }
+    }
 
     scoreZone.addEventListener('pointerdown', (e) => {
       startY = e.clientY;
       startX = e.clientX;
-      isDragging = true;
+      currentY = e.clientY;
+      lastDragTickY = e.clientY;
+      startTime = Date.now();
+      isPointerDown = true;
+      isLongPressActive = false;
       hasMovedSignificantly = false;
-      scoreZone.setPointerCapture(e.pointerId);
+      totalScrubDelta = 0;
+      initialScoreAtGestureStart = player.score;
+
+      try {
+        scoreZone.setPointerCapture(e.pointerId);
+      } catch (err) {}
+
+      clearTimeout(longPressTimer);
+      if (scrubInterval) clearInterval(scrubInterval);
+
+      // Long press triggers after 220ms
+      longPressTimer = setTimeout(() => {
+        if (!isPointerDown) return;
+        isLongPressActive = true;
+        card.classList.add('scrubbing-mode');
+        updateHud(0, 0);
+        if (navigator.vibrate) {
+          try { navigator.vibrate(25); } catch (err) {}
+        }
+        startScrubLoop();
+      }, 220);
     });
 
     scoreZone.addEventListener('pointermove', (e) => {
-      if (!isDragging) return;
+      if (!isPointerDown) return;
+      currentY = e.clientY;
       const diffY = e.clientY - startY;
 
-      if (Math.abs(diffY) > 12) {
+      if (Math.abs(diffY) > 10) {
         hasMovedSignificantly = true;
       }
 
-      if (diffY < -15) {
-        card.classList.add('swipe-up-active');
-        card.classList.remove('swipe-down-active');
-      } else if (diffY > 15) {
-        card.classList.add('swipe-down-active');
-        card.classList.remove('swipe-up-active');
+      // If user drags up/down past 35px or holds for > 180ms, transition immediately to scrub mode!
+      if (!isLongPressActive && (Date.now() - startTime > 180 || Math.abs(diffY) > 35)) {
+        isLongPressActive = true;
+        clearTimeout(longPressTimer);
+        card.classList.add('scrubbing-mode');
+        startScrubLoop();
+      }
+
+      if (isLongPressActive) {
+        // Physical distance scrubbing: tick immediately for every 16px of travel!
+        const dragDist = currentY - lastDragTickY;
+        if (Math.abs(dragDist) >= 16) {
+          const stepDelta = dragDist < 0 ? 1 : -1;
+          doScrubTick(stepDelta);
+          lastDragTickY = currentY;
+        }
       } else {
-        card.classList.remove('swipe-up-active', 'swipe-down-active');
+        // Normal swipe visual preview
+        if (diffY < -15) {
+          card.classList.add('swipe-up-active');
+          card.classList.remove('swipe-down-active');
+        } else if (diffY > 15) {
+          card.classList.add('swipe-down-active');
+          card.classList.remove('swipe-up-active');
+        } else {
+          card.classList.remove('swipe-up-active', 'swipe-down-active');
+        }
       }
     });
 
     const finishGesture = (e) => {
-      if (!isDragging) return;
-      isDragging = false;
+      if (!isPointerDown) return;
+      isPointerDown = false;
       card.classList.remove('swipe-up-active', 'swipe-down-active');
 
-      const diffY = e.clientY - startY;
+      const wasLongPress = isLongPressActive;
+      stopScrubbing();
 
-      if (hasMovedSignificantly) {
-        if (diffY < -threshold) {
-          // Swiped UP -> +1
-          modifyScore(player.id, 1, e.clientX, e.clientY);
-        } else if (diffY > threshold) {
-          // Swiped DOWN -> -1
-          modifyScore(player.id, -1, e.clientX, e.clientY);
-        }
+      if (wasLongPress && totalScrubDelta !== 0) {
+        // User performed a fast scrub!
+        // Record single consolidated undo entry for the whole scrub session
+        undoStack.push({
+          playerId: player.id,
+          prevScore: initialScoreAtGestureStart,
+          newScore: player.score
+        });
+
+        saveState();
+        renderArena();
       } else {
-        // Simple Click / Tap on card background -> +1
-        modifyScore(player.id, 1, e.clientX, e.clientY);
+        // Short gesture (< 220ms and small drag)
+        const diffY = e.clientY - startY;
+
+        if (hasMovedSignificantly && Math.abs(diffY) > 30) {
+          if (diffY < -30) {
+            // Quick Swipe UP -> +1
+            modifyScore(player.id, 1, e.clientX, e.clientY);
+          } else if (diffY > 30) {
+            // Quick Swipe DOWN -> -1
+            modifyScore(player.id, -1, e.clientX, e.clientY);
+          }
+        } else {
+          // Simple Tap / Click -> +1
+          modifyScore(player.id, 1, e.clientX, e.clientY);
+        }
       }
     };
 
     scoreZone.addEventListener('pointerup', finishGesture);
     scoreZone.addEventListener('pointercancel', () => {
-      isDragging = false;
+      isPointerDown = false;
+      stopScrubbing();
       card.classList.remove('swipe-up-active', 'swipe-down-active');
     });
 
