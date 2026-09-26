@@ -167,24 +167,89 @@
 
   function saveState() {
     try {
-      localStorage.setItem('live_counter_players', JSON.stringify(players));
-      localStorage.setItem('live_counter_target', targetScore.toString());
-      localStorage.setItem('live_counter_initial_score', initialScore.toString());
-      localStorage.setItem('live_counter_theme', currentTheme);
-      localStorage.setItem('live_counter_autoplay', isAutoPlayActive ? 'true' : 'false');
       localStorage.setItem('live_counter_blank_mode', isBlankMode ? 'true' : 'false');
     } catch (e) {
-      console.warn('Storage save failed:', e);
+      console.warn('Storage save blank mode failed:', e);
+    }
+    try {
+      localStorage.setItem('live_counter_autoplay', isAutoPlayActive ? 'true' : 'false');
+    } catch (e) {
+      console.warn('Storage save autoplay failed:', e);
+    }
+    try {
+      localStorage.setItem('live_counter_target', targetScore.toString());
+    } catch (e) {
+      console.warn('Storage save target failed:', e);
+    }
+    try {
+      localStorage.setItem('live_counter_initial_score', initialScore.toString());
+    } catch (e) {
+      console.warn('Storage save initial score failed:', e);
+    }
+    try {
+      localStorage.setItem('live_counter_theme', currentTheme);
+    } catch (e) {
+      console.warn('Storage save theme failed:', e);
+    }
+    try {
+      localStorage.setItem('live_counter_players', JSON.stringify(players));
+    } catch (e) {
+      console.warn('Storage save players failed:', e);
     }
   }
 
   function loadState() {
+    // 1. First load scalar boolean flags so intermediate calls can never overwrite them
+    try {
+      const savedBlankMode = localStorage.getItem('live_counter_blank_mode');
+      if (savedBlankMode === 'true') {
+        isBlankMode = true;
+      } else if (savedBlankMode === 'false') {
+        isBlankMode = false;
+      }
+    } catch (e) {
+      console.warn('Storage read blank mode failed:', e);
+    }
+
+    try {
+      const savedAutoPlay = localStorage.getItem('live_counter_autoplay');
+      if (savedAutoPlay === 'true') {
+        isAutoPlayActive = true;
+      } else if (savedAutoPlay === 'false') {
+        isAutoPlayActive = false;
+      }
+    } catch (e) {
+      console.warn('Storage read autoplay failed:', e);
+    }
+
     try {
       const savedInitial = localStorage.getItem('live_counter_initial_score');
       if (savedInitial !== null) {
         initialScore = Math.max(0, parseInt(savedInitial, 10) || 0);
       }
+    } catch (e) {
+      console.warn('Storage read initial score failed:', e);
+    }
 
+    try {
+      const savedTarget = localStorage.getItem('live_counter_target');
+      if (savedTarget !== null) {
+        targetScore = parseInt(savedTarget, 10);
+      }
+    } catch (e) {
+      console.warn('Storage read target score failed:', e);
+    }
+
+    try {
+      const savedTheme = localStorage.getItem('live_counter_theme');
+      if (savedTheme) {
+        setTheme(savedTheme, false); // shouldSave = false prevents premature state overwrite during load
+      }
+    } catch (e) {
+      console.warn('Storage read theme failed:', e);
+    }
+
+    try {
       const savedPlayers = localStorage.getItem('live_counter_players');
       if (savedPlayers) {
         players = JSON.parse(savedPlayers);
@@ -200,26 +265,6 @@
       } else {
         players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
         players.forEach(p => p.score = initialScore);
-      }
-
-      const savedTarget = localStorage.getItem('live_counter_target');
-      if (savedTarget !== null) {
-        targetScore = parseInt(savedTarget, 10);
-      }
-
-      const savedTheme = localStorage.getItem('live_counter_theme');
-      if (savedTheme) {
-        setTheme(savedTheme);
-      }
-
-      const savedAutoPlay = localStorage.getItem('live_counter_autoplay');
-      if (savedAutoPlay === 'true') {
-        isAutoPlayActive = true;
-      }
-
-      const savedBlankMode = localStorage.getItem('live_counter_blank_mode');
-      if (savedBlankMode === 'true') {
-        isBlankMode = true;
       }
     } catch (e) {
       players = JSON.parse(JSON.stringify(DEFAULT_PLAYERS));
@@ -1358,7 +1403,7 @@
      Theme & OBS Overlay
      ========================================================================== */
 
-  function setTheme(themeName) {
+  function setTheme(themeName, shouldSave = true) {
     currentTheme = themeName;
     document.body.classList.remove('theme-chroma-green', 'theme-chroma-blue', 'theme-transparent');
 
@@ -1373,7 +1418,9 @@
     if (themeSelect) {
       themeSelect.value = themeName;
     }
-    saveState();
+    if (shouldSave) {
+      saveState();
+    }
   }
 
   function toggleStreamMode() {
@@ -1396,6 +1443,13 @@
       isBlankMode = !isBlankMode;
     }
 
+    // Direct immediate persistent write to guarantee preservation across fast reloads
+    try {
+      localStorage.setItem('live_counter_blank_mode', isBlankMode ? 'true' : 'false');
+    } catch (e) {
+      console.warn('Direct storage write failed:', e);
+    }
+
     saveState();
     updateBlankModeUI();
 
@@ -1406,6 +1460,7 @@
 
   function updateBlankModeUI() {
     document.body.classList.toggle('blank-mode', isBlankMode);
+    document.documentElement.classList.toggle('blank-mode', isBlankMode);
 
     if (blankModeBtn) {
       blankModeBtn.classList.toggle('active', isBlankMode);
