@@ -1237,13 +1237,15 @@ body.stream-mode .app-header:hover {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 1000;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-normal);
   padding: 20px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal-backdrop.show {
@@ -1258,9 +1260,14 @@ body.stream-mode .app-header:hover {
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 240, 255, 0.2);
   width: 100%;
   max-width: 520px;
-  overflow: hidden;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   transform: translateY(20px) scale(0.95);
   transition: transform var(--transition-spring);
+  flex-shrink: 0;
+  margin: auto 0;
 }
 
 .modal-backdrop.show .modal-dialog {
